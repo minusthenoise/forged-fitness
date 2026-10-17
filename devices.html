@@ -1,0 +1,72 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Devices | Forged Fitness</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+<main class="wrap">
+  <h1>Connect a device</h1>
+  <p class="muted">One device per account, one account per device. Connections below are <span class="placeholder">mocked, no OAuth yet</span>. the device ID is a fingerprint generated in this browser.</p>
+  <div class="card hot" id="bound"></div>
+  <div class="grid g3" style="margin-top:16px" id="providers"></div>
+  <div class="card" style="margin-top:16px"><h3>Binding history</h3>
+    <div class="table-scroll"><table><thead><tr><th>When</th><th>Event</th><th>Device ID</th></tr></thead><tbody id="hist"></tbody></table></div></div>
+  <div class="card" style="margin-top:16px"><h3>Demo controls</h3>
+    <p class="small muted">To test "device already bound to another account": connect a device here, log out, sign up a second account in the same browser and try the same provider. It gets refused. These buttons exist only for the draft.</p>
+    <div class="row"><button class="btn sm" id="newHw">Simulate a different physical device (new hardware salt)</button><button class="btn sm" id="ff">Fast-forward my unbind cooldown</button></div>
+  </div>
+</main>
+<script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script>
+<script>
+const PROVIDERS = [
+  { id: 'fitbit', label: 'Fitbit', icon: '⌚', note: 'Web API OAuth (mock)' },
+  { id: 'apple', label: 'Apple Health', icon: '🍎', note: 'HealthKit via iOS companion app (mock)' },
+  { id: 'googlefit', label: 'Google Fit / Health Connect', icon: '🟢', note: 'Health Connect on Android (mock)' },
+  { id: 'garmin', label: 'Garmin', icon: '🧭', note: 'Garmin Connect Health API (mock)' },
+  { id: 'phone', label: 'Phone sensors', icon: '📱', note: 'Motion/pedometer via mobile web (mock)' }
+];
+const C = FF_CONFIG;
+UI.boot({ auth: true }).then(u => { if (!u) return; render();
+  UI.$('#newHw').onclick = () => { FF.tx(d => { d.browserSalt = FF.rid(12); }); UI.toast('New hardware salt. The next connect produces a different device ID.'); };
+  UI.$('#ff').onclick = () => { FF.updateMe(u => { u.cooldownUntil = 0; }); UI.toast('Cooldown cleared (demo only).'); render(); };
+});
+async function connect(p) {
+  const d = FF.load(), u = FF.me(d);
+  if (u.device) return UI.toast('You already have a bound device. Unbind it first (starts a ' + C.UNBIND_COOLDOWN_H + 'h cooldown).');
+  if (u.cooldownUntil > Date.now()) return UI.toast(`Unbind cooldown active until ${UI.time(u.cooldownUntil)}.`);
+  UI.toast(`Connecting to ${p.label}… <span class="small muted">(simulated OAuth)</span>`, 1200);
+  await new Promise(r => setTimeout(r, 900));
+  const id = await FF.deviceFingerprint(p.id, d);
+  try {
+    const refused = FF.tx(d => {
+      const u = FF.me(d), owner = d.devices[id];
+      if (owner && owner !== u.email) { u.deviceHistory.push({ ts: Date.now(), event: `REFUSED ${p.label}: already bound to another account`, deviceId: id }); return true; }
+      d.devices[id] = u.email;
+      u.device = { provider: p.id, label: p.label, deviceId: id, boundAt: Date.now(), lastSync: 0 };
+      u.deviceHistory.push({ ts: Date.now(), event: `Bound ${p.label}`, deviceId: id });
+      FF.post(d, u.name, `connected ${p.label}`);
+    });
+    if (refused) throw new Error(`Refused: this ${p.label} (${id}) is already bound to another account.`);
+    const { act, e } = FF.syncDevice();
+    UI.toast(`${p.label} bound. First sync: ${UI.num(act.steps)} steps → ${UI.num(e.amount, 2)} FIT.`);
+  } catch (er) { UI.toast(er.message, 5000); }
+  render();
+}
+function unbind() {
+  if (!confirm(`Unbind this device? You won't be able to bind another for ${C.UNBIND_COOLDOWN_H} hours.`)) return;
+  FF.tx(d => { const u = FF.me(d); delete d.devices[u.device.deviceId]; u.deviceHistory.push({ ts: Date.now(), event: `Unbound ${u.device.label}`, deviceId: u.device.deviceId });
+    u.device = null; u.cooldownUntil = Date.now() + C.UNBIND_COOLDOWN_H * 3600e3; });
+  render();
+}
+function render() {
+  const u = FF.me(), cd = u.cooldownUntil > Date.now();
+  UI.$('#bound').innerHTML = u.device
+    ? `<div class="row"><span class="tag ok">bound</span><b>${UI.esc(u.device.label)}</b><span class="mono small">${u.device.deviceId}</span><span class="spacer"></span><button class="btn sm" id="syncB">Sync now</button><button class="btn sm danger" id="unb">Unbind</button></div>
+       <p class="small muted">Bound ${UI.time(u.device.boundAt)} · last sync ${u.device.lastSync ? UI.ago(u.device.lastSync) : 'never'} · This device ID is locked to your account; no other account can use it.</p>`
+    : `<div class="row"><span class="tag warn">no device</span><b>Connect one device to earn verified rewards.</b></div>${cd ? `<p class="small" style="color:var(--warn)">Unbind cooldown: you can bind a new device after ${UI.time(u.cooldownUntil)}.</p>` : ''}`;
+  if (u.device) { UI.$('#unb').onclick = unbind; UI.$('#syncB').onclick = () => { try { const { act, e } = FF.syncDevice(); UI.toast(`+${UI.num(act.steps)} steps → ${UI.num(e.amount, 2)} FIT (${e.status})`); render(); } catch (er) { UI.toast(er.message); } }; }
+  UI.$('#providers').innerHTML = PROVIDERS.map(p => { const mine = u.device && u.device.provider === p.id;
+    return `<div class="card"><div style="font-size:1.8rem">${p.icon}</div><h3>${p.label}</h3><p class="small muted">${p.note}</p>
+      <button class="btn ${mine ? '' : 'primary'} sm" data-p="${p.id}" ${u.device || cd ? 'disabled' : ''}>${mine ? 'Connected' : 'Connect'}</button></div>`; }).join('');
+  UI.$$('[data-p]').forEach(b => b.onclick = () => connect(PROVIDERS.find(p => p.id === b.dataset.p)));
+  UI.$('#hist').innerHTML = u.deviceHistory.slice().reverse().map(h => `<tr><td class="small">${UI.time(h.ts)}</td><td class="small" style="${/REFUSED/.test(h.event) ? 'color:var(--bad)' : ''}">${UI.esc(h.event)}</td><td class="mono small">${h.deviceId}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No device events yet.</td></tr>';
+}
+</script>
+</body></html>

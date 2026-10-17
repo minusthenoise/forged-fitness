@@ -1,0 +1,99 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forged Fitness | Crypto pays you to move. $FIT</title>
+<meta name="description" content="Forged Fitness: fitness-to-earn for $FIT on Solana. Walk, run, lift, earn. Earn before the robots take over.">
+<link rel="icon" href="favicon.svg"><link rel="stylesheet" href="css/style.css"></head>
+<body class="landing">
+<section class="hero-bg">
+  <video class="hero-video" id="heroVideo" autoplay muted loop playsinline preload="auto" poster="media/forged_fitness_ad_fit_still.png" aria-hidden="true">
+    <source src="media/forged_fitness_ad_fit.mp4" type="video/mp4">
+  </video>
+  <div class="hero-overlay"></div>
+  <div class="wrap hero">
+    <div class="hero-copy">
+      <span class="tag info">Fitness-to-earn · Solana · <span id="tick">$FIT</span></span>
+      <h1>Crypto <span class="ember">pays you</span> to move.</h1>
+      <p class="tagline">Earn before the robots take over. <span class="ember">$FIT</span></p>
+      <p class="lead">Walk, run, lift. Connect your watch or phone, upload a workout, or train live with creators. Verified movement earns <b id="tick2">$FIT</b>. Your crew keeps you consistent.</p>
+      <div class="row" style="margin-top:20px">
+        <a class="btn primary lg" href="signup.html">Join the Forge. It's free.</a>
+        <a class="btn lg" href="dashboard.html?demo=1">Try the demo</a>
+      </div>
+    </div>
+    <div class="hero-frame" aria-hidden="true">
+      <video class="hero-frame-video" autoplay muted loop playsinline preload="auto" poster="media/forged_fitness_ad_fit_still.png">
+        <source src="media/forged_fitness_ad_fit.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+</section>
+
+<main class="wrap">
+  <section class="card hot ca-block" id="token">
+    <div class="ca-head"><h3 style="margin:0">$FIT contract address</h3><span class="tag info">Solana · Pump.fun</span></div>
+    <div class="ca-row">
+      <code class="ca" id="ca"></code>
+      <button class="btn primary sm" id="copyCa" type="button">Copy</button>
+    </div>
+    <div class="row ca-links">
+      <a class="btn sm" id="pumpLink" target="_blank" rel="noopener">Pump.fun page ↗</a>
+      <a class="btn sm" id="dexLink" target="_blank" rel="noopener">DexScreener chart ↗</a>
+    </div>
+    <p class="small muted disclaimer">$FIT is a meme token. Nothing here is investment advice. Rewards are points until on-chain payouts go live. Always verify the contract address before you buy.</p>
+  </section>
+
+  <section class="grid g4" style="margin:28px 0 40px">
+    <div class="card stat"><div class="v ember">12,480</div><div class="l">Forgers (sample)</div></div>
+    <div class="card stat"><div class="v">1.9B</div><div class="l">Verified steps (sample)</div></div>
+    <div class="card stat"><div class="v">346</div><div class="l">Live sessions this week (sample)</div></div>
+    <div class="card stat"><div class="v">500</div><div class="l">Daily earn cap per account</div></div>
+  </section>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <div class="grid g4 steps">
+      <div class="card"><h3>Sign up</h3><p class="muted small">Create an account and add your Solana wallet.</p></div>
+      <div class="card"><h3>Move</h3><p class="muted small">Sync steps from Fitbit, Apple Health, Google Fit, Garmin or your phone, or upload a workout screenshot.</p></div>
+      <div class="card"><h3>Get verified</h3><p class="muted small">Metadata checks, one device per account and random live check-ins keep bots and fakes out.</p></div>
+      <div class="card"><h3>Earn &amp; claim</h3><p class="muted small">Points convert from a fixed daily pool. Streaks boost you up to +50%. Claim to your wallet.</p></div>
+    </div>
+    <div class="grid g3" style="margin-top:16px">
+      <div class="card hot"><h3>🔴 Live tier</h3><p class="muted small">Join creator-hosted runs and gym sessions. Device-streamed movement earns <b>6× the base rate</b>. Go quiet for 60s and rewards pause.</p></div>
+      <div class="card"><h3>🔥 Streaks beat spikes</h3><p class="muted small">+5% per active day in a row, up to +50%. One account earns at most 500 FIT a day, so showing up every day wins.</p></div>
+      <div class="card"><h3>⚖️ Fixed emission</h3><p class="muted small">One fixed daily pool, split across all verified activity and shrinking 10% each month. Nobody can drain the supply.</p></div>
+    </div>
+  </section>
+
+  <section id="community" style="margin-top:40px">
+    <h2>Train together. Earn together.</h2>
+    <div class="grid g2">
+      <div class="card"><h3>Live in the Forge</h3><ul class="feed" id="feed"></ul></div>
+      <div class="card"><h3>Crews &amp; challenges</h3><div id="crews"></div></div>
+    </div>
+  </section>
+
+  <section class="card hot cta">
+    <h2>Your sweat. Your coin.</h2>
+    <p class="muted">Join a crew, keep your streak, show up live.</p>
+    <a class="btn primary lg" href="signup.html">Create your account</a>
+  </section>
+</main>
+<script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script>
+<script>
+UI.boot().then(() => {
+  const C = FF_CONFIG;
+  UI.$('#tick').textContent = C.TICKER; UI.$('#tick2').textContent = C.TICKER;
+  UI.$('#ca').textContent = C.MINT;
+  UI.$('#pumpLink').href = C.PUMP_URL; UI.$('#dexLink').href = C.DEX_URL;
+  UI.$('#copyCa').onclick = () => UI.copy(C.MINT, UI.$('#copyCa'));
+  // Hero video: fall back to the still (CSS background) if the clip can't play.
+  UI.$$('.hero-bg video').forEach(v => {
+    const fail = () => v.classList.add('hidden');
+    v.addEventListener('error', fail, true); v.querySelector('source').addEventListener('error', fail);
+    if (v.networkState === 3 || v.error) fail();
+    const p = v.play(); if (p && p.catch) p.catch(() => {});
+  });
+  UI.$('#feed').innerHTML = MOCK.feed.slice(0, 5).map(f => `<li><div class="avatar">${UI.initials(f.who)}</div><div><b>${UI.esc(f.who)}</b> ${f.text}<div class="small muted">${UI.ago(f.ts)}</div></div></li>`).join('');
+  UI.$('#crews').innerHTML = MOCK.crews.map(c => `<div style="margin:10px 0"><div class="row"><b>${c.name}</b><span class="spacer"></span><span class="small muted">${UI.num(c.members)} members</span></div><div class="small muted">${c.challenge}</div><div class="bar"><i style="width:${c.progress * 100}%"></i></div></div>`).join('');
+});
+</script>
+</body></html>

@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Join | Forged Fitness</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+<main class="wrap" style="max-width:520px">
+  <div class="card hot">
+    <div class="row"><a href="#" id="tabSignup" class="btn sm">Sign up</a><a href="#" id="tabLogin" class="btn sm ghost">Log in</a></div>
+    <form id="signupForm">
+      <h2>Join the Forge</h2>
+      <p class="muted small">Mock account, stored only in this browser's localStorage. Don't reuse a real password.</p>
+      <label>Display name</label><input name="name" required placeholder="e.g. Anvil Annie">
+      <label>Email</label><input name="email" type="email" required placeholder="you@example.com">
+      <label>Password</label><input name="password" type="password" required minlength="6">
+      <label>Solana wallet address <span class="muted">(optional now, needed to claim)</span></label>
+      <div class="row"><input name="wallet" id="wallet" placeholder="Base58 address" style="flex:1"><button type="button" class="btn sm" id="connect">Connect wallet</button></div>
+      <p class="small muted">"Connect wallet" is a <span class="placeholder">simulated Phantom/Solflare connect</span>. It generates a fake address. A real build would use the Solana Wallet Adapter and a signed message.</p>
+      <p class="small" id="err" style="color:var(--bad)"></p>
+      <button class="btn primary" style="width:100%">Create account</button>
+    </form>
+    <form id="loginForm" class="hidden">
+      <h2>Welcome back</h2>
+      <label>Email</label><input name="email" type="email" required>
+      <label>Password</label><input name="password" type="password" required>
+      <p class="small" id="err2" style="color:var(--bad)"></p>
+      <button class="btn primary" style="width:100%">Log in</button>
+      <p class="small muted">Or <a href="dashboard.html?demo=1">use the demo account</a> (demo@forged.fit / demo1234).</p>
+    </form>
+  </div>
+</main>
+<script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script>
+<script>
+UI.boot().then(() => {
+  const qs = new URLSearchParams(location.search), next = qs.get('next') || 'dashboard.html';
+  const show = login => { UI.$('#signupForm').classList.toggle('hidden', login); UI.$('#loginForm').classList.toggle('hidden', !login);
+    UI.$('#tabSignup').className = 'btn sm' + (login ? ' ghost' : ''); UI.$('#tabLogin').className = 'btn sm' + (login ? '' : ' ghost'); };
+  show(qs.get('mode') === 'login');
+  UI.$('#tabSignup').onclick = e => { e.preventDefault(); show(false); };
+  UI.$('#tabLogin').onclick = e => { e.preventDefault(); show(true); };
+  UI.$('#connect').onclick = () => { const a = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'; let s = ''; for (let i = 0; i < 44; i++) s += a[Math.floor(Math.random() * a.length)]; UI.$('#wallet').value = s; UI.toast('Simulated wallet connected. No real wallet was touched.'); };
+  UI.$('#signupForm').onsubmit = async e => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+    try { await FF.signup(f); location.href = 'dashboard.html'; } catch (er) { UI.$('#err').textContent = er.message; } };
+  UI.$('#loginForm').onsubmit = async e => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+    try { await FF.login(f.email, f.password); location.href = next; } catch (er) { UI.$('#err2').textContent = er.message; } };
+});
+</script>
+</body></html>

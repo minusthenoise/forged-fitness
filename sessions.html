@@ -1,0 +1,134 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live sessions | Forged Fitness</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+<main class="wrap">
+  <div id="listView">
+    <h1>Live sessions <span class="tag info">premium earn tier</span></h1>
+    <p class="muted">Train live with creators. With a bound device streaming movement, live minutes earn <b id="rate"></b> points/min (vs ~1/min walking). Random check-ins gate larger payouts; rewards pause if your movement signal goes quiet for <b id="quiet"></b>s.</p>
+    <h2>🔴 Live now</h2><div class="grid g2" id="live"></div>
+    <h2 style="margin-top:24px">Upcoming</h2><div class="grid g2" id="upcoming"></div>
+  </div>
+
+  <div id="sessView" class="hidden">
+    <div class="row"><button class="btn sm ghost" id="back">← Sessions</button><h2 id="sTitle" style="margin:0"></h2><span class="tag live">LIVE</span><span class="spacer"></span><button class="btn danger" id="end">End &amp; bank rewards</button></div>
+    <div class="grid g2" style="margin-top:14px;grid-template-columns:1.4fr 1fr">
+      <div>
+        <div class="video" id="video"><span class="tag live rec">● REC</span><div style="text-align:center"><div style="font-size:3rem">🎥</div><div id="sHost"></div><div class="small">creator stream <span class="placeholder">video placeholder</span></div></div>
+          <div class="paused-overlay hidden" id="pausedOv"><div><div class="tag warn">REWARDS PAUSED</div><h2>No movement signal</h2><p class="small muted" id="pausedWhy">Nothing from your device for 60s.</p><button class="btn primary" id="resume">Resume, I'm moving</button></div></div>
+        </div>
+        <div class="grid g4" style="margin-top:12px">
+          <div class="card stat"><div class="l">Active time</div><div class="v" id="sTime">0:00</div></div>
+          <div class="card stat"><div class="l">Points</div><div class="v ember" id="sPts">0</div><div class="small muted" id="sRate"></div></div>
+          <div class="card stat"><div class="l">Est. FIT</div><div class="v" id="sForge">0</div><div class="small muted" id="sMath"></div></div>
+          <div class="card stat"><div class="l">Check-ins</div><div class="v" id="sCk">0/0</div><div class="small muted" id="sNext"></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="card"><div class="row"><h3>Movement stream</h3><span class="spacer"></span><span id="earnState"></span></div>
+          <div class="small mono" id="stream" style="height:120px;overflow:hidden;color:var(--muted)"></div>
+          <div class="small" id="quietLine"></div>
+          <div class="row" style="margin-top:8px"><button class="btn sm" id="quietBtn">Simulate going quiet</button><button class="btn sm" id="botBtn">Simulate bot (flat signal)</button></div>
+        </div>
+        <div class="card" style="margin-top:12px"><h3>Session chat</h3><div id="chat" class="small" style="height:150px;overflow:hidden"></div></div>
+      </div>
+    </div>
+  </div>
+</main>
+<script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script>
+<script>
+const C = FF_CONFIG; let SESS = MOCK.sessions(); let S = null;
+UI.boot({ auth: true }).then(u => { if (!u) return; UI.$('#rate').textContent = C.LIVE_POINTS_PER_MIN; UI.$('#quiet').textContent = C.QUIET_TIMEOUT_S; list();
+  UI.$('#back').onclick = () => { if (!S || confirm('Leave without banking rewards?')) stop(false); };
+  UI.$('#end').onclick = () => stop(true);
+  UI.$('#resume').onclick = () => { if (!S) return; S.moving = true; S.bot = false; S.hrs = []; S.lastSignal = Date.now() - 1; signal(); S.paused = false; UI.$('#quietBtn').textContent = 'Simulate going quiet'; draw(); UI.toast('Movement signal back. Earning resumed.'); };
+  UI.$('#quietBtn').onclick = () => { S.moving = !S.moving; UI.$('#quietBtn').textContent = S.moving ? 'Simulate going quiet' : 'Start moving again'; };
+  UI.$('#botBtn').onclick = () => { S.bot = true; S.moving = true; UI.toast('Bot mode: device now emits a perfectly constant signal.'); };
+});
+
+function list() {
+  const u = FF.me(), card = s => { const rs = u.rsvps.includes(s.id), mins = Math.round((s.start - Date.now()) / 60e3);
+    return `<div class="card ${s.live ? 'hot' : ''}"><div class="row">${s.live ? '<span class="tag live">LIVE</span>' : `<span class="tag info">in ${mins >= 60 ? Math.round(mins / 60) + 'h' : mins + 'm'}</span>`}<span class="tag">${s.type}</span><span class="spacer"></span><span class="small muted">${UI.num(s.joined + (rs ? 1 : 0))} ${s.live ? 'in session' : 'going'}</span></div>
+      <h3 style="margin-top:8px">${s.title}</h3><div class="small muted">Hosted by <b>${s.host}</b> <span class="placeholder">placeholder creator</span> · ${UI.time(s.start)} · ${s.mins} min</div>
+      <div class="row" style="margin-top:10px">${s.live ? `<button class="btn primary" data-join="${s.id}">Join live</button>` : `<button class="btn ${rs ? '' : 'primary'}" data-rsvp="${s.id}">${rs ? '✓ RSVP’d · cancel' : 'RSVP'}</button>`}</div></div>`; };
+  UI.$('#live').innerHTML = SESS.filter(s => s.live).map(card).join('');
+  UI.$('#upcoming').innerHTML = SESS.filter(s => !s.live).map(card).join('');
+  UI.$$('[data-rsvp]').forEach(b => b.onclick = () => { FF.tx(d => { const me = FF.me(d), i = me.rsvps.indexOf(b.dataset.rsvp); if (i >= 0) me.rsvps.splice(i, 1); else { me.rsvps.push(b.dataset.rsvp); FF.post(d, me.name, 'RSVP’d to ' + SESS.find(s => s.id === b.dataset.rsvp).title); } }); list(); });
+  UI.$$('[data-join]').forEach(b => b.onclick = () => start(SESS.find(s => s.id === b.dataset.join)));
+}
+
+function start(sess) {
+  const u = FF.me();
+  S = { sess, device: !!u.device, deviceLabel: u.device ? u.device.label : null, active: 0, points: 0, steps: 0, paused: false, moving: true, bot: false, flagged: null,
+    lastSignal: Date.now(), hr: 128, hrs: [], passed: 0, missed: 0, inCheckin: false, nextCk: Date.now() + (20 + Math.random() * 25) * 1000, t0: Date.now() };
+  UI.$('#listView').classList.add('hidden'); UI.$('#sessView').classList.remove('hidden');
+  UI.$('#sTitle').textContent = sess.title; UI.$('#sHost').textContent = sess.host + ' · ' + sess.type;
+  UI.$('#stream').innerHTML = ''; UI.$('#chat').innerHTML = '';
+  if (!S.device) UI.toast('No bound device: earning at the standard (unverified) live rate. Connect a device for the premium tier.', 5000);
+  S.iv = setInterval(tick, 1000); S.chatIv = setInterval(chat, 3500); draw();
+}
+function signal() {
+  if (!S.device) return;
+  if (S.bot) S.hr = 140; else S.hr = Math.max(95, Math.min(178, S.hr + (Math.random() * 8 - 4)));
+  const cad = S.sess.type === 'Gym' ? Math.round(20 + Math.random() * 25) : Math.round(150 + Math.random() * 25);
+  S.cad = cad; S.hrs.push(S.hr); if (S.hrs.length > 20) S.hrs.shift(); S.lastSignal = Date.now();
+  const el = UI.$('#stream'); el.insertAdjacentHTML('afterbegin', `<div>${new Date().toLocaleTimeString()} · ${S.deviceLabel} · HR ${Math.round(S.hr)} bpm · ${cad} steps/min</div>`); while (el.children.length > 7) el.lastChild.remove();
+}
+function tick() {
+  const now = Date.now();
+  if (S.device && S.moving) signal();
+  // bot heuristic: real heart rate is never perfectly flat
+  if (S.device && S.hrs.length >= 15 && !S.flagged) { const m = S.hrs.reduce((a, b) => a + b) / S.hrs.length, sd = Math.sqrt(S.hrs.reduce((a, b) => a + (b - m) ** 2, 0) / S.hrs.length);
+    if (sd < 0.5) { S.flagged = 'Movement signal too uniform (HR std-dev ' + sd.toFixed(2) + '). Looks scripted.'; S.paused = true; UI.toast('⚠ Session flagged: ' + S.flagged, 5000); } }
+  const quiet = (now - S.lastSignal) / 1000;
+  if (S.device && quiet >= C.QUIET_TIMEOUT_S && !S.paused) { S.paused = true; UI.toast('Rewards paused: no movement signal for ' + C.QUIET_TIMEOUT_S + 's.'); }
+  if (!S.paused && !S.inCheckin) {
+    const rate = S.device ? C.LIVE_POINTS_PER_MIN : C.LIVE_UNVERIFIED_POINTS_PER_MIN;
+    S.active++; S.points += rate / 60; S.steps += (S.cad || 0) / 60;
+  }
+  if (!S.inCheckin && !S.paused && now >= S.nextCk) runCheckin();
+  draw();
+}
+async function runCheckin() {
+  S.inCheckin = true;
+  const r = await UI.checkin({ context: `${S.sess.title}: larger live payouts need passed check-ins` });
+  if (!S) return;
+  S.inCheckin = false; r.passed ? S.passed++ : S.missed++;
+  FF.updateMe(u => FF.recordCheckin(u, { ...r, context: 'live:' + S.sess.id }));
+  UI.toast(r.passed ? `✅ Check-in passed (${r.reactionMs} ms)` : `✖ Check-in failed: ${r.reason}`);
+  S.nextCk = Date.now() + (30 + Math.random() * 30) * 1000; draw();
+}
+function chat() { const el = UI.$('#chat'), who = MOCK.athletes[Math.floor(Math.random() * MOCK.athletes.length)][0];
+  el.insertAdjacentHTML('afterbegin', `<div><b>${who}</b>: ${MOCK.chat[Math.floor(Math.random() * MOCK.chat.length)]}</div>`); while (el.children.length > 8) el.lastChild.remove(); }
+function checkinOK() { const n = S.passed + S.missed; return S.passed >= 1 && S.passed / n >= 0.75; }
+function draw() {
+  if (!S) return; const u = FF.me();
+  const mm = Math.floor(S.active / 60), ss = String(S.active % 60).padStart(2, '0');
+  UI.$('#sTime').textContent = `${mm}:${ss}`; UI.$('#sPts').textContent = UI.num(S.points, 1);
+  UI.$('#sRate').textContent = S.device ? `${C.LIVE_POINTS_PER_MIN}/min · premium` : `${C.LIVE_UNVERIFIED_POINTS_PER_MIN}/min · no device`;
+  const mult = FF.streakMultiplier(FF.streak(u)), f = FF.proRataFactor(), capLeft = Math.max(0, C.DAILY_CAP - FF.earnedOn(u, FF.dayKey()));
+  const est = Math.min(S.points * mult * f, capLeft);
+  UI.$('#sForge').textContent = UI.num(est, 2); UI.$('#sMath').textContent = `×${mult.toFixed(2)} streak · ×${f.toFixed(2)} pool · cap left ${UI.num(capLeft)}`;
+  UI.$('#sCk').textContent = `${S.passed}/${S.passed + S.missed}`;
+  UI.$('#sNext').textContent = S.inCheckin ? 'check-in open!' : S.paused ? 'paused' : `next ~${Math.max(0, Math.round((S.nextCk - Date.now()) / 1000))}s (random)`;
+  const quiet = Math.round((Date.now() - S.lastSignal) / 1000);
+  UI.$('#earnState').innerHTML = S.flagged ? '<span class="tag bad">flagged</span>' : S.paused ? '<span class="tag warn">paused</span>' : S.device ? '<span class="tag ok">earning</span>' : '<span class="tag warn">unverified</span>';
+  UI.$('#quietLine').innerHTML = !S.device ? '<span style="color:var(--warn)">No device stream. <a href="devices.html">connect a device</a> for the premium tier.</span>'
+    : S.moving ? `Signal OK · last ${quiet}s ago` : `<span style="color:var(--warn)">No signal for ${quiet}s. Pauses at ${C.QUIET_TIMEOUT_S}s</span>`;
+  UI.$('#pausedOv').classList.toggle('hidden', !S.paused);
+  UI.$('#pausedWhy').textContent = S.flagged ? S.flagged + '. Resuming clears bot mode; the session stays flagged for review.' : `Nothing from your device for ${C.QUIET_TIMEOUT_S}s. Rewards resume when movement does.`;
+}
+function stop(bank) {
+  if (!S) return; clearInterval(S.iv); clearInterval(S.chatIv);
+  if (bank && S.active > 0) {
+    const s = S, mins = Math.round(s.active / 60 * 10) / 10;
+    const e = FF.tx(d => { const u = FF.me(d);
+      const act = FF.addActivity(u, { source: 'live', steps: s.steps, minutes: mins, note: s.sess.title });
+      const reasons = []; if (s.flagged) reasons.push(s.flagged);
+      const e = FF.earn(u, { points: s.points, source: s.device ? 'Live session (premium)' : 'Live session (no device)', verified: s.device && !s.flagged, checkinPassed: checkinOK(), strictCheckin: true, note: `${s.sess.title} · ${mins} active min · check-ins ${s.passed}/${s.passed + s.missed}`, ref: act.id, blocked: !!s.flagged, reasons });
+      FF.post(d, u.name, `finished “${s.sess.title}” live (${mins} min)`); return e; });
+    UI.toast(`Banked ${UI.num(e.amount, 2)} FIT → ${e.status}${e.reasons.length ? ': ' + UI.esc(e.reasons[0]) : ''}`, 6000);
+  }
+  S = null; UI.$('#sessView').classList.add('hidden'); UI.$('#listView').classList.remove('hidden'); list();
+}
+</script>
+</body></html>

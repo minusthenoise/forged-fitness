@@ -1,0 +1,81 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rewards | Forged Fitness</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+<main class="wrap">
+  <h1>Rewards &amp; payouts</h1>
+  <div class="grid g4">
+    <div class="card stat"><div class="l">Balance (claimed)</div><div class="v" id="bal"></div><div class="small muted">simulated wallet balance</div></div>
+    <div class="card stat hot"><div class="l">Claimable</div><div class="v ember" id="cl"></div></div>
+    <div class="card stat"><div class="l">Pending</div><div class="v" id="pe"></div><div class="small muted">awaiting verification / check-in / review</div></div>
+    <div class="card stat"><div class="l">Blocked · capped</div><div class="v" id="bl"></div><div class="small muted">flagged gross · lost to daily cap</div></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="row"><h3 style="margin:0">Claim to wallet</h3><span class="spacer"></span><span class="placeholder">SIMULATED · no on-chain transaction</span></div>
+    <div class="row wallet-row" style="margin-top:10px"><input id="wallet" placeholder="Solana wallet address" style="flex:1;min-width:220px"><button class="btn sm" id="saveW">Save wallet</button><button class="btn primary" id="claim">Claim</button></div>
+    <div class="ca-row" style="margin-bottom:6px"><code class="ca" id="mint"></code><button class="btn sm" id="copyCa" type="button">Copy CA</button></div>
+    <div class="row"><a class="btn sm" id="pumpLink" target="_blank" rel="noopener">Pump.fun ↗</a><a class="btn sm" id="dexLink" target="_blank" rel="noopener">DexScreener ↗</a></div>
+    <p class="small muted">Rewards pay out in <b>$FIT</b> (Solana, Pump.fun) at the contract address above. Until on-chain payouts go live, rewards are points and claims are simulated. A real claim will be a server-signed transfer from the reward vault after server-side re-verification.</p>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Payout tiers</h3>
+      <div class="table-scroll"><table><thead><tr><th>Entry size</th><th>Requires</th></tr></thead><tbody id="tiers"></tbody></table></div>
+      <h3 style="margin-top:16px">Supply controls</h3><ul class="small" id="rules"></ul>
+      <div class="row"><span class="small">Your streak: <b id="stk"></b></span><span class="spacer"></span><button class="btn sm" id="ckNow">Run a live check-in now</button></div>
+    </div>
+    <div class="card"><div class="row"><h3 style="margin:0">Emission schedule</h3><span class="spacer"></span><span class="tag info" id="mo"></span></div>
+      <div style="margin:10px 0"><div class="row small"><span>Today's pool remaining <span class="muted">(network simulated)</span></span><span class="spacer"></span><b id="poolTxt"></b></div><div class="bar ok"><i id="poolBar"></i></div>
+        <div class="small muted" id="poolMath"></div></div>
+      <div style="max-height:230px;overflow:auto"><table><thead><tr><th>Month</th><th style="text-align:right">Daily pool</th><th style="text-align:right">Month total</th></tr></thead><tbody id="sched"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px"><h3>Reward ledger</h3>
+    <div class="table-scroll"><table class="wide-table"><thead><tr><th>When</th><th>Source</th><th style="text-align:right">Base pts</th><th style="text-align:right">Streak</th><th style="text-align:right">Pool ×</th><th style="text-align:right">FIT</th><th>Tier</th><th>Status</th><th></th></tr></thead><tbody id="ledger"></tbody></table></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Payout history</h3>
+    <div class="table-scroll"><table><thead><tr><th>When</th><th style="text-align:right">Amount</th><th>Wallet</th><th>Tx signature</th></tr></thead><tbody id="payouts"></tbody></table></div></div>
+</main>
+<script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script>
+<script>
+const C = FF_CONFIG;
+UI.boot({ auth: true }).then(u => { if (!u) return; UI.$('#wallet').value = u.wallet; render();
+  UI.$('#saveW').onclick = () => { try { FF.setWallet(UI.$('#wallet').value); UI.toast('Wallet saved (mock).'); } catch (e) { UI.toast(e.message); } };
+  UI.$('#claim').onclick = () => { try { FF.setWallet(UI.$('#wallet').value); const p = FF.tx(d => { const p = FF.claim(FF.me(d)); FF.post(d, FF.me(d).name, `claimed ${p.amount.toFixed(2)} FIT (simulated)`); return p; });
+    UI.toast(`Simulated claim of ${UI.num(p.amount, 2)} FIT → ${p.wallet.slice(0, 6)}…<br><span class="mono small">${p.sig.slice(0, 28)}…</span>`, 6000); render(); } catch (e) { UI.toast(e.message); } };
+  UI.$('#ckNow').onclick = doCheckin; UI.$('#copyCa').onclick = () => UI.copy(C.MINT, UI.$('#copyCa'));
+});
+async function doCheckin() {
+  const r = await UI.checkin({ context: 'Unlocks pending entries over ' + C.TIER_AUTO_MAX + ' FIT from the last ' + C.CHECKIN_VALID_HOURS + 'h' });
+  FF.updateMe(u => FF.recordCheckin(u, { ...r, context: 'rewards page' }));
+  UI.toast(r.passed ? '✅ Check-in passed. Pending rewards re-checked.' : '✖ ' + r.reason); render();
+}
+function render() {
+  const u = FF.me(), t = FF.totals(u);
+  UI.$('#mint').textContent = C.MINT; UI.$('#pumpLink').href = C.PUMP_URL; UI.$('#dexLink').href = C.DEX_URL;
+  UI.$('#bal').innerHTML = UI.num(t.claimed, 2); UI.$('#cl').innerHTML = UI.num(t.claimable, 2); UI.$('#pe').innerHTML = UI.num(t.pending, 2); UI.$('#bl').innerHTML = `${UI.num(t.blocked, 1)} · ${UI.num(t.capped, 1)}`;
+  UI.$('#claim').disabled = t.claimable <= 0; UI.$('#claim').textContent = `Claim ${UI.num(t.claimable, 2)} FIT`;
+  UI.$('#tiers').innerHTML = `<tr><td>≤ ${C.TIER_AUTO_MAX} FIT</td><td><span class="tag ok">auto</span> verified data (device, verified screenshot, or reviewer)</td></tr>
+    <tr><td>${C.TIER_AUTO_MAX}–${C.TIER_CHECKIN_MAX} FIT</td><td><span class="tag warn">check-in</span> verified data + a passed live check-in in the last ${C.CHECKIN_VALID_HOURS}h</td></tr>
+    <tr><td>&gt; ${C.TIER_CHECKIN_MAX} FIT</td><td><span class="tag bad">review</span> verified data + check-in + manual review</td></tr>`;
+  UI.$('#rules').innerHTML = `<li><b>Daily cap:</b> ${C.DAILY_CAP} FIT per account per day (today: ${UI.num(FF.earnedOn(u, FF.dayKey()), 2)} used). Activity past the cap logs but earns 0.</li>
+    <li><b>Pro-rata pool:</b> points convert at min(1, daily pool ÷ network verified points). Today: ${FF.proRataFactor().toFixed(3)} FIT/point.</li>
+    <li><b>Streak bonus:</b> +${C.STREAK_BONUS_PER_DAY * 100}% per consecutive active day (≥ ${UI.num(C.STREAK_GOAL_STEPS)} steps or a live session), max +${C.STREAK_BONUS_MAX * 100}%.</li>
+    <li><b>Live tier:</b> ${C.LIVE_POINTS_PER_MIN} pts/min with device stream (pauses after ${C.QUIET_TIMEOUT_S}s quiet) vs ${C.POINTS_PER_100_STEPS} pt per 100 steps.</li>`;
+  const s = FF.streak(u); UI.$('#stk').textContent = `${s} days → ×${FF.streakMultiplier(s).toFixed(2)}`;
+  const ps = FF.poolStatus(); UI.$('#mo').textContent = `month ${ps.month} · −${C.MONTHLY_DECAY * 100}%/mo`;
+  UI.$('#poolTxt').textContent = `${UI.num(ps.remaining)} / ${UI.num(ps.pool)} FIT`; UI.$('#poolBar').style.width = (ps.remaining / ps.pool * 100) + '%';
+  UI.$('#poolMath').textContent = `Network verified points today (projected, simulated): ${UI.num(FF.networkPoints())} → ${ps.factor.toFixed(3)} FIT per point. Settlement is final at day end on a real backend.`;
+  UI.$('#sched').innerHTML = FF.schedule().map(r => `<tr style="${r.current ? 'color:var(--ember2);font-weight:700' : ''}"><td>${r.label}${r.current ? ' ◀ now' : ''}</td><td style="text-align:right">${UI.num(r.daily)}</td><td style="text-align:right">${UI.num(r.monthly)}</td></tr>`).join('');
+  UI.$('#ledger').innerHTML = u.ledger.slice().sort((a, b) => b.ts - a.ts).map(e => `<tr><td class="small">${UI.time(e.ts)}</td><td class="small">${UI.esc(e.source)}<div class="muted">${UI.esc(e.note)}</div></td>
+      <td style="text-align:right">${UI.num(e.basePoints, 1)}</td><td style="text-align:right">×${e.streakMult.toFixed(2)}</td><td style="text-align:right">×${e.factor.toFixed(2)}</td>
+      <td style="text-align:right"><b>${UI.num(e.amount, 2)}</b>${e.cappedOff > 0 ? `<div class="small" style="color:var(--warn)">−${UI.num(e.cappedOff, 2)} cap</div>` : ''}</td>
+      <td class="small">${FF.tierOf(e.amount)}</td><td>${UI.statusTag(e.status)}${e.reasons.map(r => `<div class="small muted">• ${UI.esc(r)}</div>`).join('')}</td>
+      <td>${e.status === 'pending' && e.reasons.some(r => /check-in/.test(r)) ? '<button class="btn sm" data-ck>Check in</button>' : ''}${e.status === 'pending' && e.reasons.some(r => /manual review/.test(r)) ? `<button class="btn sm" data-rev="${e.id}">Mock review: approve</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="9" class="muted">No rewards yet.</td></tr>';
+  UI.$$('[data-ck]').forEach(b => b.onclick = doCheckin);
+  UI.$$('[data-rev]').forEach(b => b.onclick = () => { FF.updateMe(u => { const e = u.ledger.find(x => x.id === b.dataset.rev); e.reviewed = true; FF.evaluate(u, e); }); render(); });
+  UI.$('#payouts').innerHTML = u.payouts.slice().reverse().map(p => `<tr><td class="small">${UI.time(p.ts)}</td><td style="text-align:right"><b>${UI.num(p.amount, 2)}</b></td><td class="mono small">${p.wallet.slice(0, 6)}…${p.wallet.slice(-4)}</td><td class="mono small">${p.sig.slice(0, 26)}… <span class="tag warn">simulated</span></td></tr>`).join('') || '<tr><td colspan="4" class="muted">No payouts yet.</td></tr>';
+}
+</script>
+</body></html>

@@ -1,0 +1,82 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard | Forged Fitness</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+<main class="wrap">
+  <div class="row"><h1 id="hello">Dashboard</h1><span class="spacer"></span>
+    <button class="btn primary" id="sync">Sync device</button><a class="btn" href="sessions.html">🔴 Go live</a><a class="btn" href="upload.html">Upload screenshot</a></div>
+  <p class="muted small" id="devline"></p>
+
+  <div class="grid g4">
+    <div class="card stat"><div class="l">Steps today</div><div class="v" id="today">0</div><div class="small muted" id="todayGoal"></div></div>
+    <div class="card stat"><div class="l">Steps this week</div><div class="v" id="week">0</div><div class="small muted">Mon–today</div></div>
+    <div class="card stat"><div class="l">Streak</div><div class="v ember" id="streak">0</div><div class="small muted" id="mult"></div></div>
+    <div class="card stat"><div class="l">Earnings (FIT)</div><div class="v" id="earn">0</div><div class="small muted" id="earnSplit"></div></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="row"><b>Daily earn cap</b><span class="spacer"></span><span id="capText" class="small"></span></div>
+    <div class="bar" style="margin-top:6px"><i id="capBar" style="width:0"></i></div>
+    <p class="small muted" style="margin:6px 0 0">One account can earn at most <b id="capN"></b> FIT per day. Activity past the cap still logs (and keeps your streak) but earns nothing. Today's pro-rata rate: <b id="factor"></b> FIT/point.</p>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card">
+      <div class="row"><h3>Community feed</h3><span class="spacer"></span><span class="tag info">placeholder + your activity</span></div>
+      <ul class="feed" id="feed"></ul>
+    </div>
+    <div class="card">
+      <div class="row"><h3>Weekly leaderboard</h3><span class="spacer"></span><span class="small muted">verified steps</span></div>
+      <div class="table-scroll"><table><thead><tr><th>#</th><th>Forger</th><th>Crew</th><th style="text-align:right">Steps</th></tr></thead><tbody id="lb"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Crews</h3><div id="crews"></div>
+      <h3 style="margin-top:18px">Challenges</h3><div id="challenges"></div></div>
+    <div class="card"><h3>Recent activity</h3>
+      <div class="table-scroll"><table><thead><tr><th>When</th><th>Source</th><th style="text-align:right">Steps</th></tr></thead><tbody id="acts"></tbody></table></div>
+      <details style="margin-top:12px"><summary class="small muted">Log steps manually (self-reported, stays pending until verified)</summary>
+        <div class="row" style="margin-top:8px"><input id="mSteps" type="number" placeholder="steps" style="max-width:140px"><input id="mMin" type="number" placeholder="minutes" style="max-width:120px"><button class="btn sm" id="mLog">Log</button></div>
+      </details>
+    </div>
+  </div>
+</main>
+<script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script>
+<script>
+UI.boot({ auth: true }).then(u => { if (!u) return; render();
+  UI.$('#sync').onclick = () => { try { const { act, e } = FF.syncDevice(); UI.toast(`Synced ${UI.num(act.steps)} steps → ${UI.num(e.amount, 2)} FIT (${e.status})${e.cappedOff > 0 ? ' · cap hit' : ''}`); render(); } catch (er) { UI.toast(er.message); } };
+  UI.$('#mLog').onclick = () => { try { const e = FF.logManual(UI.$('#mSteps').value, UI.$('#mMin').value); UI.toast(`Logged. ${e.status}: ${e.reasons[0] || ''}`); render(); } catch (er) { UI.toast(er.message); } };
+});
+function render() {
+  const C = FF_CONFIG, d = FF.load(), u = FF.me(d), today = FF.dayKey();
+  UI.$('#hello').textContent = `Let's forge, ${u.name.split(' ')[0]}`;
+  UI.$('#devline').innerHTML = u.device ? `Bound device: <b>${UI.esc(u.device.label)}</b> <span class="mono">${u.device.deviceId}</span> · last sync ${UI.ago(u.device.lastSync || u.device.boundAt)}` : `No device bound. <a href="devices.html">connect one</a> to earn verified rewards.`;
+  UI.$('#sync').disabled = !u.device;
+  const t = FF.stepsOn(u, today); UI.$('#today').textContent = UI.num(t);
+  UI.$('#todayGoal').textContent = t >= C.STREAK_GOAL_STEPS ? '✅ streak goal hit' : `${UI.num(C.STREAK_GOAL_STEPS - t)} to streak goal`;
+  const wk = u.activities.filter(a => a.ts >= FF.startOfWeek()).reduce((s, a) => s + a.steps, 0); UI.$('#week').textContent = UI.num(wk);
+  const s = FF.streak(u); UI.$('#streak').textContent = s + (s === 1 ? ' day' : ' days');
+  UI.$('#mult').textContent = `bonus ×${FF.streakMultiplier(s).toFixed(2)} (max ×${(1 + C.STREAK_BONUS_MAX).toFixed(2)})`;
+  const tot = FF.totals(u); UI.$('#earn').textContent = UI.num(tot.claimed + tot.claimable + tot.pending, 2);
+  UI.$('#earnSplit').innerHTML = `${UI.num(tot.claimable, 2)} claimable · ${UI.num(tot.pending, 2)} pending · <a href="rewards.html">rewards</a>`;
+  const et = FF.earnedOn(u, today), pct = Math.min(100, et / C.DAILY_CAP * 100);
+  UI.$('#capBar').style.width = pct + '%'; UI.$('#capText').innerHTML = `<b>${UI.num(et, 2)}</b> / ${C.DAILY_CAP} FIT today ${pct >= 100 ? '<span class="tag warn">cap reached</span>' : ''}`;
+  UI.$('#capN').textContent = C.DAILY_CAP; UI.$('#factor').textContent = FF.proRataFactor().toFixed(3);
+  // feed
+  const feed = [...MOCK.feed, ...d.feed.map(f => ({ ...f, text: UI.esc(f.text) }))].sort((a, b) => b.ts - a.ts).slice(0, 8);
+  UI.$('#feed').innerHTML = feed.map(f => `<li><div class="avatar">${UI.initials(f.who)}</div><div><b>${UI.esc(f.who)}</b> ${f.text}<div class="small muted">${UI.ago(f.ts)}</div></div></li>`).join('');
+  // leaderboard
+  const rows = MOCK.athletes.map(([n, st, c]) => ({ n, st, c, me: false }));
+  rows.push({ n: u.name + ' (you)', st: wk, c: u.crews[0] || '-', me: true });
+  rows.sort((a, b) => b.st - a.st);
+  const crewName = id => (MOCK.crews.find(c => c.id === id) || { name: '-' }).name;
+  UI.$('#lb').innerHTML = rows.map((r, i) => `<tr style="${r.me ? 'color:var(--ember2);font-weight:700' : ''}"><td>${i + 1}</td><td>${UI.esc(r.n)}</td><td class="small muted">${crewName(r.c)}</td><td style="text-align:right">${UI.num(r.st)}</td></tr>`).join('');
+  // crews
+  UI.$('#crews').innerHTML = MOCK.crews.map(c => { const j = u.crews.includes(c.id); return `<div style="margin:10px 0"><div class="row"><b>${c.name}</b> <span class="small muted">${UI.num(c.members + (j ? 1 : 0))} members</span><span class="spacer"></span><button class="btn sm ${j ? '' : 'primary'}" data-crew="${c.id}">${j ? 'Leave' : 'Join'}</button></div><div class="small muted">${c.challenge}</div><div class="bar"><i style="width:${c.progress * 100}%"></i></div></div>`; }).join('');
+  UI.$$('[data-crew]').forEach(b => b.onclick = () => { FF.tx(d => { const me = FF.me(d), id = b.dataset.crew; const i = me.crews.indexOf(id); if (i >= 0) me.crews.splice(i, 1); else { me.crews.push(id); FF.post(d, me.name, 'joined crew ' + crewName(id)); } }); render(); });
+  UI.$('#challenges').innerHTML = MOCK.challenges.map(c => `<div style="margin:8px 0"><b>${c.name}</b> <span class="small muted">· ends ${c.ends}</span><div class="small muted">${c.desc} · ${c.reward}</div></div>`).join('');
+  // activity
+  UI.$('#acts').innerHTML = u.activities.slice().sort((a, b) => b.ts - a.ts).slice(0, 8).map(a => `<tr><td class="small">${UI.time(a.ts)}</td><td class="small">${UI.esc(a.source)}${a.note ? ` <span class="muted">· ${UI.esc(a.note)}</span>` : ''}</td><td style="text-align:right">${UI.num(a.steps)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No activity yet.</td></tr>';
+}
+</script>
+</body></html>

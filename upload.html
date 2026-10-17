@@ -1,0 +1,119 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Upload activity | Forged Fitness</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+<main class="wrap">
+  <h1>Upload an activity screenshot</h1>
+  <p class="muted">Screenshot from your treadmill, watch app or health app. Checks run in your browser for this draft; a real backend re-runs them server-side. Test files are in <code>samples/</code>.</p>
+  <div class="grid g2">
+    <form class="card" id="form">
+      <label>Activity type</label><select name="type"><option>Walk</option><option>Run</option><option>Treadmill</option><option>Gym session</option><option>Hike</option></select>
+      <div class="grid g2"><div><label>Activity start</label><input type="datetime-local" name="start" required></div><div><label>Activity end</label><input type="datetime-local" name="end" required></div></div>
+      <label>Steps shown in screenshot</label><input type="number" name="steps" min="1" required placeholder="e.g. 8412">
+      <label>Screenshot (JPEG / PNG)</label><input type="file" name="file" accept="image/*" required>
+      <img id="preview" style="max-width:100%;max-height:220px;margin-top:10px;border-radius:8px;display:none">
+      <div style="margin-top:14px"><button class="btn primary">Run checks &amp; submit</button></div>
+      <p class="small muted">Tip: <code>samples/good-exif-2026-10-17-0820.jpg</code> was "captured" 2026-10-17 08:20 CT. Set the window to 07:00–08:15 that day to see it verify.</p>
+    </form>
+    <div class="card" id="result"><h3>Verification result</h3><p class="muted">Submit a screenshot to see the checks.</p></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Your uploads</h3>
+    <div class="table-scroll"><table><thead><tr><th>When</th><th>File</th><th>Claimed</th><th>Status</th><th>Reward</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
+    <p class="small muted">"Mock reviewer" buttons stand in for a human moderation queue.</p>
+  </div>
+</main>
+<script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script><script src="js/exif.js"></script>
+<script>
+const C = FF_CONFIG;
+const EDITORS = /photoshop|gimp|snapseed|picsart|lightroom|canva|pixelmator|facetune|affinity|paint\.net|photopea|meitu/i;
+UI.boot({ auth: true }).then(u => { if (!u) return;
+  const f = UI.$('#form'); const pad = n => String(n).padStart(2, '0');
+  const local = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  f.start.value = local(Date.now() - 90 * 60e3); f.end.value = local(Date.now() - 30 * 60e3);
+  f.file.onchange = () => { const file = f.file.files[0]; const p = UI.$('#preview'); if (file) { p.src = URL.createObjectURL(file); p.style.display = 'block'; } };
+  f.onsubmit = async e => { e.preventDefault(); try { await submit(f); } catch (er) { UI.toast(er.message); } };
+  hist();
+});
+
+async function submit(f) {
+  const file = f.file.files[0]; if (!file) throw new Error('Pick a file.');
+  const start = new Date(f.start.value).getTime(), end = new Date(f.end.value).getTime(), steps = Math.round(+f.steps.value);
+  const buf = await file.arrayBuffer();
+  const hash = await FF.sha256Hex(buf);
+  const meta = FFExif.read(buf);
+  const cap = FFExif.captureTime(meta.tags);
+  const checks = []; // {level: ok|warn|bad, text}
+  const add = (level, text) => checks.push({ level, text });
+  const d = FF.load(), u = FF.me(d), now = Date.now();
+
+  // 1. claimed window sanity
+  if (!(end > start)) add('bad', 'Activity end is before start.');
+  else if (end > now + 5 * 60e3) add('bad', 'Activity window is in the future.');
+  else add('ok', `Claimed window ${UI.time(start)} – ${UI.time(end)} (${Math.round((end - start) / 60e3)} min)`);
+  // 2. step-rate plausibility
+  const mins = Math.max(1, (end - start) / 60e3), spm = steps / mins;
+  if (spm > C.MAX_STEPS_PER_MIN) add('bad', `Impossible step rate: ${Math.round(spm)} steps/min (limit ${C.MAX_STEPS_PER_MIN}).`);
+  else add('ok', `Step rate ${Math.round(spm)} steps/min is plausible.`);
+  // 3. duplicate detection (SHA-256 vs. every upload on this "server")
+  const prior = d.hashes[hash];
+  if (prior) add('bad', `Duplicate file: identical SHA-256 already uploaded ${prior.email === u.email ? 'by you' : 'by another account'} on ${UI.time(prior.ts)}.`);
+  else add('ok', `New file · SHA-256 ${hash.slice(0, 16)}…`);
+  // 4. metadata present?
+  const hasMeta = Object.keys(meta.tags).length > 0;
+  if (!hasMeta) add('warn', `No capture metadata found in ${meta.format.toUpperCase()} (stripped, re-saved, or a screenshot format without EXIF). Sent to manual review. ${meta.notes.join('; ')}`);
+  else add('ok', `Metadata found: ${Object.keys(meta.tags).join(', ')}`);
+  // 5. capture timestamp vs. claimed window
+  if (cap.date) {
+    const ct = cap.date.getTime();
+    if (ct > now + 5 * 60e3) add('bad', `Capture time ${UI.time(ct)} is in the future (clock tampering?).`);
+    else if (ct < start - 15 * 60e3) add('bad', `Captured ${UI.time(ct)}, before the activity started. Old screenshot?`);
+    else if (ct > end + C.SCREENSHOT_GRACE_H * 3600e3) add('bad', `Captured ${UI.time(ct)}, more than ${C.SCREENSHOT_GRACE_H}h after the activity ended.`);
+    else add('ok', `Capture time ${UI.time(ct)} (${cap.field}) fits the claimed window.`);
+  } else if (hasMeta) add('warn', 'Metadata has no capture timestamp.');
+  // 6. editing software / modify-date drift
+  if (meta.tags.Software && EDITORS.test(meta.tags.Software)) add('bad', `Edited with image software: "${meta.tags.Software}".`);
+  else if (meta.tags.Software) add('ok', `Software tag: ${meta.tags.Software}`);
+  if (meta.tags.DateTimeOriginal && meta.tags.DateTime && meta.tags.DateTime !== meta.tags.DateTimeOriginal) {
+    const drift = Math.abs(FFExif.toDate(meta.tags.DateTime) - FFExif.toDate(meta.tags.DateTimeOriginal)) / 1000;
+    if (drift > 60) add('warn', `File was modified ${Math.round(drift / 60)} min after capture.`);
+  }
+  // 7. weak signal: file lastModified (never trusted alone)
+  add(hasMeta ? 'ok' : 'warn', `Browser-reported lastModified ${UI.time(file.lastModified)} (weak signal, easily spoofed).`);
+  // 8. rate limit
+  const todayCount = u.uploads.filter(x => x.ts > now - 864e5).length;
+  if (todayCount >= C.UPLOADS_PER_DAY) add('warn', `Upload rate limit: ${C.UPLOADS_PER_DAY}/day reached. Queued for review.`);
+
+  const status = checks.some(c => c.level === 'bad') ? 'flagged' : checks.some(c => c.level === 'warn') ? 'pending review' : 'verified';
+  const result = FF.tx(d => {
+    const u = FF.me(d);
+    const act = FF.addActivity(u, { ts: end, source: 'screenshot', steps: status === 'flagged' ? 0 : steps, minutes: Math.round(mins), note: `${f.type.value} screenshot` });
+    const e = FF.earn(u, { ts: Math.min(end, Date.now()), points: steps / 100 * C.POINTS_PER_100_STEPS, source: 'Screenshot upload', verified: status === 'verified', note: `${f.type.value}: ${steps.toLocaleString()} steps`,
+      blocked: status === 'flagged', reasons: checks.filter(c => c.level === 'bad').map(c => c.text), ref: act.id });
+    const up = { id: FF.rid(), ts: Date.now(), name: file.name, size: file.size, hash, format: meta.format, tags: meta.tags, start, end, steps, status, checks, ledgerId: e.id };
+    u.uploads.push(up);
+    if (!prior) d.hashes[hash] = { email: u.email, ts: Date.now(), uploadId: up.id };
+    if (status === 'verified') FF.post(d, u.name, `uploaded a verified ${f.type.value.toLowerCase()} screenshot ✅`);
+    return { up, e };
+  });
+  showResult(result.up, result.e); hist();
+}
+
+function showResult(up, e) {
+  UI.$('#result').innerHTML = `<h3>Verification result</h3><div class="row">${UI.statusTag(up.status)}<span class="small muted mono">${UI.esc(up.name)} · ${UI.num(up.size / 1024, 1)} KB · ${up.format}</span></div>
+    <ul class="reasons">${up.checks.map(c => `<li class="${c.level}">${c.level === 'ok' ? '✔' : c.level === 'warn' ? '⚠' : '✖'} ${UI.esc(c.text)}</li>`).join('')}</ul>
+    <p class="small">Reward entry: <b>${UI.num(e.amount, 2)} FIT</b> → ${UI.statusTag(e.status)} ${(e.reasons || []).map(r => `<div class="small muted">• ${UI.esc(r)}</div>`).join('')}</p>`;
+}
+
+function hist() {
+  const u = FF.me();
+  UI.$('#hist').innerHTML = u.uploads.slice().reverse().map(up => { const e = u.ledger.find(x => x.id === up.ledgerId) || {};
+    return `<tr><td class="small">${UI.time(up.ts)}</td><td class="small mono">${UI.esc(up.name)}</td><td class="small">${UI.num(up.steps)} steps</td><td>${UI.statusTag(up.status)}</td><td class="small">${UI.num(e.amount, 2)} · ${e.status || ''}</td>
+    <td>${up.status === 'pending review' ? `<button class="btn sm" data-a="${up.id}">Mock reviewer: approve</button> <button class="btn sm danger" data-r="${up.id}">reject</button>` : `<button class="btn sm ghost" data-v="${up.id}">details</button>`}</td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">No uploads yet.</td></tr>';
+  UI.$$('[data-a],[data-r]').forEach(b => b.onclick = () => { const approve = !!b.dataset.a, id = b.dataset.a || b.dataset.r;
+    FF.tx(d => { const u = FF.me(d), up = u.uploads.find(x => x.id === id), e = u.ledger.find(x => x.id === up.ledgerId);
+      up.status = approve ? 'verified' : 'flagged'; up.checks.push({ level: approve ? 'ok' : 'bad', text: `Mock reviewer ${approve ? 'approved' : 'rejected'} at ${UI.time(Date.now())}` });
+      if (approve) { e.verified = true; } else { e.blocked = true; e.flagReasons = ['Rejected by reviewer']; }
+      FF.evaluate(u, e); }); hist(); UI.toast(approve ? 'Approved (mock)' : 'Rejected (mock)'); });
+  UI.$$('[data-v]').forEach(b => b.onclick = () => { const u = FF.me(), up = u.uploads.find(x => x.id === b.dataset.v); showResult(up, u.ledger.find(x => x.id === up.ledgerId) || {}); scrollTo(0, 0); });
+}
+</script>
+</body></html>
