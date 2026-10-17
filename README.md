@@ -19,13 +19,13 @@ No build step and no npm. There are no CDN dependencies: the EXIF parser is vend
 ## Page map
 | Page | What it does |
 |---|---|
-| `index.html` | Landing: looping $FIT ad clip as hero background (`media/forged_fitness_ad_fit.mp4`, still as poster/fallback), the "Crypto pays you to move" pitch, the $FIT contract address with copy button and Pump.fun / DexScreener links, how it works, the live tier, streaks and fixed emission, a community feed, crews, and a CTA |
+| `index.html` | Landing: looping $FIT ad clip as hero background (`media/forged_fitness_ad_fit.mp4`, still as poster/fallback), the "Crypto pays you to move" pitch, Buy $FIT buttons in the top nav and hero linking out to Pump.fun, the $FIT contract address with copy button, a Buy on Pump.fun button and Pump.fun / DexScreener links, a 3 step how to buy section (Solana wallet, fund with SOL, swap on Pump.fun) with the contract address and copy button, how it works, the live tier, streaks and fixed emission, a community feed, crews, and a CTA |
 | `signup.html` | Sign up or log in (`?mode=login`), mocked in localStorage, with a Solana wallet field and a simulated "Connect wallet" |
 | `dashboard.html` | Today's and this week's steps, streak plus multiplier, earnings, a daily-cap progress bar, community feed, weekly leaderboard, crews (join/leave), challenges, recent activity, device sync and a manual log |
 | `upload.html` | Screenshot upload: real file input, EXIF/PNG metadata read, timestamp vs. activity window, stripped-metadata flag, SHA-256 duplicate check, editor detection, step-rate check, rate limit, a verified/pending/flagged status with reasons, and a mock review queue |
 | `devices.html` | Mock connect for Fitbit, Apple Health, Google Fit, Garmin and phone; a device fingerprint ID; one device per account; refusal of devices bound elsewhere; 72 h unbind cooldown; binding history |
 | `sessions.html` | Live and upcoming creator sessions (runs and gym), RSVP, join; an in-session view with a mock video, chat, movement stream, random check-ins, quiet-pause and resume, and a bot flag; ends by banking rewards |
-| `rewards.html` | Balance, claimable, pending, blocked/capped; wallet; simulated claim; payout tiers; supply controls; emission schedule plus today's remaining pool; full reward ledger with check-in and review actions; payout history |
+| `rewards.html` | Balance, claimable, pending, blocked/capped; wallet; simulated claim; a Buy $FIT link to Pump.fun near the claim card; payout tiers; supply controls; emission schedule plus today's remaining pool; full reward ledger with check-in and review actions; payout history |
 
 ## Files
 ```

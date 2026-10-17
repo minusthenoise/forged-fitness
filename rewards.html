@@ -14,7 +14,7 @@
     <div class="row"><h3 style="margin:0">Claim to wallet</h3><span class="spacer"></span><span class="placeholder">SIMULATED · no on-chain transaction</span></div>
     <div class="row wallet-row" style="margin-top:10px"><input id="wallet" placeholder="Solana wallet address" style="flex:1;min-width:220px"><button class="btn sm" id="saveW">Save wallet</button><button class="btn primary" id="claim">Claim</button></div>
     <div class="ca-row" style="margin-bottom:6px"><code class="ca" id="mint"></code><button class="btn sm" id="copyCa" type="button">Copy CA</button></div>
-    <div class="row"><a class="btn sm" id="pumpLink" target="_blank" rel="noopener">Pump.fun ↗</a><a class="btn sm" id="dexLink" target="_blank" rel="noopener">DexScreener ↗</a></div>
+    <div class="row"><a class="btn sm primary" id="buyLink" target="_blank" rel="noopener">Buy $FIT</a><a class="btn sm" id="pumpLink" target="_blank" rel="noopener">Pump.fun ↗</a><a class="btn sm" id="dexLink" target="_blank" rel="noopener">DexScreener ↗</a></div>
     <p class="small muted">Rewards pay out in <b>$FIT</b> (Solana, Pump.fun) at the contract address above. Until on-chain payouts go live, rewards are points and claims are simulated. A real claim will be a server-signed transfer from the reward vault after server-side re-verification.</p>
   </div>
 
@@ -53,7 +53,7 @@ async function doCheckin() {
 }
 function render() {
   const u = FF.me(), t = FF.totals(u);
-  UI.$('#mint').textContent = C.MINT; UI.$('#pumpLink').href = C.PUMP_URL; UI.$('#dexLink').href = C.DEX_URL;
+  UI.$('#mint').textContent = C.MINT; UI.$('#pumpLink').href = C.PUMP_URL; UI.$('#dexLink').href = C.DEX_URL; UI.$('#buyLink').href = C.PUMP_URL;
   UI.$('#bal').innerHTML = UI.num(t.claimed, 2); UI.$('#cl').innerHTML = UI.num(t.claimable, 2); UI.$('#pe').innerHTML = UI.num(t.pending, 2); UI.$('#bl').innerHTML = `${UI.num(t.blocked, 1)} · ${UI.num(t.capped, 1)}`;
   UI.$('#claim').disabled = t.claimable <= 0; UI.$('#claim').textContent = `Claim ${UI.num(t.claimable, 2)} FIT`;
   UI.$('#tiers').innerHTML = `<tr><td>≤ ${C.TIER_AUTO_MAX} FIT</td><td><span class="tag ok">auto</span> verified data (device, verified screenshot, or reviewer)</td></tr>

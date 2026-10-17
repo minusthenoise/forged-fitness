@@ -16,6 +16,7 @@
       <p class="lead">Walk, run, lift. Connect your watch or phone, upload a workout, or train live with creators. Verified movement earns <b id="tick2">$FIT</b>. Your crew keeps you consistent.</p>
       <div class="row" style="margin-top:20px">
         <a class="btn primary lg" href="signup.html">Join the Forge. It's free.</a>
+        <a class="btn primary lg" id="buyHero" target="_blank" rel="noopener">Buy $FIT</a>
         <a class="btn lg" href="dashboard.html?demo=1">Try the demo</a>
       </div>
     </div>
@@ -35,10 +36,31 @@
       <button class="btn primary sm" id="copyCa" type="button">Copy</button>
     </div>
     <div class="row ca-links">
+      <a class="btn sm primary" id="buyPump" target="_blank" rel="noopener">Buy on Pump.fun</a>
       <a class="btn sm" id="pumpLink" target="_blank" rel="noopener">Pump.fun page ↗</a>
       <a class="btn sm" id="dexLink" target="_blank" rel="noopener">DexScreener chart ↗</a>
     </div>
     <p class="small muted disclaimer">$FIT is a meme token. Nothing here is investment advice. Rewards are points until on-chain payouts go live. Always verify the contract address before you buy.</p>
+  </section>
+
+  <section id="buy" style="margin-top:28px">
+    <h2>How to buy $FIT</h2>
+    <div class="grid g3 steps">
+      <div class="card"><h3>Get a Solana wallet</h3><p class="muted small">Download a Solana wallet such as Phantom and create your wallet. Save your recovery phrase somewhere safe and never share it.</p></div>
+      <div class="card"><h3>Fund it with SOL</h3><p class="muted small">Buy SOL in your wallet or on an exchange, then send it to your Solana wallet address. You need SOL to swap and to pay the small network fee.</p></div>
+      <div class="card"><h3>Swap for $FIT on Pump.fun</h3><p class="muted small">Open the Pump.fun page, paste the contract address below to check you have the right token, then swap your SOL for $FIT.</p></div>
+    </div>
+    <div class="card ca-block-buy" style="margin-top:16px">
+      <div class="ca-row" style="margin-top:0">
+        <code class="ca" id="caBuy"></code>
+        <button class="btn primary sm" id="copyCaBuy" type="button">Copy</button>
+      </div>
+      <div class="row ca-links">
+        <a class="btn sm primary" id="buyPump2" target="_blank" rel="noopener">Buy on Pump.fun</a>
+        <a class="btn sm" id="dexLink2" target="_blank" rel="noopener">DexScreener chart ↗</a>
+      </div>
+      <p class="small muted disclaimer">$FIT is a meme token. Nothing here is investment advice. Rewards are points until on-chain payouts go live. Always verify the contract address before you buy.</p>
+    </div>
   </section>
 
   <section class="grid g4" style="margin:28px 0 40px">
@@ -84,7 +106,10 @@ UI.boot().then(() => {
   UI.$('#tick').textContent = C.TICKER; UI.$('#tick2').textContent = C.TICKER;
   UI.$('#ca').textContent = C.MINT;
   UI.$('#pumpLink').href = C.PUMP_URL; UI.$('#dexLink').href = C.DEX_URL;
+  UI.$('#buyHero').href = C.PUMP_URL; UI.$('#buyPump').href = C.PUMP_URL; UI.$('#buyPump2').href = C.PUMP_URL;
+  UI.$('#caBuy').textContent = C.MINT; UI.$('#dexLink2').href = C.DEX_URL;
   UI.$('#copyCa').onclick = () => UI.copy(C.MINT, UI.$('#copyCa'));
+  UI.$('#copyCaBuy').onclick = () => UI.copy(C.MINT, UI.$('#copyCaBuy'));
   // Hero video: fall back to the still (CSS background) if the clip can't play.
   UI.$$('.hero-bg video').forEach(v => {
     const fail = () => v.classList.add('hidden');

@@ -24,7 +24,7 @@ const UI = (() => {
       <nav class="nav"><div class="wrap">
         <a class="brand" href="index.html"><span class="anvil"></span>Forged Fitness</a>
         <div class="links">${u ? PAGES.map(([h, l]) => `<a href="${h}" class="${h === here ? 'active' : ''}">${l}</a>`).join('') : '<a href="index.html#how">How it works</a><a href="index.html#community">Community</a><a href="index.html#token">$FIT</a>'}</div>
-        <div class="acct">${u ? `<span class="who">${esc(u.name)}</span><a class="btn sm ghost" href="#" id="logout">Log out</a>` : `<a class="btn sm ghost" href="signup.html?mode=login">Log in</a><a class="btn sm primary" href="signup.html">Join</a>`}</div>
+        <div class="acct"><a class="btn sm primary buy-nav" href="${C.PUMP_URL}" target="_blank" rel="noopener">Buy $FIT</a>${u ? `<span class="who">${esc(u.name)}</span><a class="btn sm ghost" href="#" id="logout">Log out</a>` : `<a class="btn sm ghost" href="signup.html?mode=login">Log in</a><a class="btn sm primary" href="signup.html">Join</a>`}</div>
       </div></nav>`;
     document.body.prepend(nav);
     const f = document.createElement('footer');

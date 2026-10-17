@@ -93,6 +93,8 @@ th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;
 .ca-links{margin-bottom:4px}
 .disclaimer{margin:10px 0 0}
 .ca-inline{overflow-wrap:anywhere;word-break:break-all}
+.buy-nav{white-space:nowrap}
+.ca-block-buy .ca-row{margin-bottom:12px}
 .cta{margin-top:40px;text-align:center;padding:36px}
 .ingot{display:none}
 .steps{counter-reset:s}
