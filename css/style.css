@@ -57,7 +57,6 @@ input:focus,select:focus{outline:none;border-color:var(--ember)}
 .tag.info{color:var(--ember2);border-color:rgba(255,179,71,.4)}
 @keyframes pulse{50%{opacity:.6}}
 .placeholder{border:1px dashed #5a4a3a;color:var(--ember2);background:rgba(255,106,26,.05);padding:2px 6px;border-radius:4px;font-size:.78rem;font-family:ui-monospace,monospace}
-.ph-banner{background:repeating-linear-gradient(45deg,#2a1a10 0 10px,#22150d 10px 20px);color:var(--ember2);text-align:center;font-size:.8rem;padding:4px 10px;border-bottom:1px solid #3a2617}
 /* tables / lists */
 table{width:100%;border-collapse:collapse;font-size:.92rem}
 th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -103,7 +102,6 @@ th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;
 footer{border-top:1px solid var(--line);padding:22px 0;color:var(--muted);font-size:.8rem;background:#0a0a0c}
 footer p{margin:8px 0 0}
 footer .foot-top a{color:var(--muted)} footer .foot-top a:hover{color:var(--ember2)}
-.ph-banner a{color:var(--ember2)}
 /* modal */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);display:grid;place-items:center;z-index:100}
 .modal{background:var(--panel);border:1px solid var(--ember);border-radius:14px;padding:24px;width:min(460px,92vw);text-align:center;position:relative;min-height:260px}

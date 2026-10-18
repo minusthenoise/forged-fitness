@@ -88,7 +88,7 @@
       const dv = new DataView(buffer);
       if (dv.byteLength > 3 && dv.getUint16(0) === 0xffd8) { out.format = 'jpeg'; parseJPEG(dv, out); }
       else if (dv.byteLength > 8 && dv.getUint32(0) === 0x89504e47) { out.format = 'png'; parsePNG(dv, out); }
-      else out.notes.push('Unsupported format for metadata (HEIC/WebP not parsed in draft)');
+      else out.notes.push('Unsupported format for metadata (HEIC/WebP not parsed)');
     } catch (e) { out.notes.push('Metadata parse error: ' + e.message); }
     return out;
   }

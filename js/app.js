@@ -19,9 +19,7 @@ const UI = (() => {
     const u = FF.me();
     const here = location.pathname.split('/').pop() || 'index.html';
     const nav = document.createElement('header');
-    const shortCa = C.MINT.slice(0, 4) + '…' + C.MINT.slice(-4);
-    nav.innerHTML = `<div class="ph-banner">Rough draft · sample data · <span class="mono">${C.TICKER}</span> CA <a href="index.html#token" class="mono" title="${C.MINT}">${shortCa}</a></div>
-      <nav class="nav"><div class="wrap">
+    nav.innerHTML = `<nav class="nav"><div class="wrap">
         <a class="brand" href="index.html"><span class="anvil"></span>Forged Fitness</a>
         <div class="links">${u ? PAGES.map(([h, l]) => `<a href="${h}" class="${h === here ? 'active' : ''}">${l}</a>`).join('') : '<a href="index.html#how">How it works</a><a href="index.html#community">Community</a><a href="index.html#token">$FIT</a>'}</div>
         <div class="acct"><a class="btn sm primary buy-nav" href="${C.PUMP_URL}" target="_blank" rel="noopener">Buy $FIT</a>${u ? `<span class="who">${esc(u.name)}</span><a class="btn sm ghost" href="#" id="logout">Log out</a>` : `<a class="btn sm ghost" href="signup.html?mode=login">Log in</a><a class="btn sm primary" href="signup.html">Join</a>`}</div>
@@ -30,7 +28,7 @@ const UI = (() => {
     const f = document.createElement('footer');
     f.innerHTML = `<div class="wrap"><div class="row foot-top"><b>Forged Fitness</b><span class="spacer"></span><a href="${C.PUMP_URL}" target="_blank" rel="noopener">Pump.fun</a><a href="${C.DEX_URL}" target="_blank" rel="noopener">DexScreener</a><a href="index.html#token">Contract address</a></div>
       <p>${C.TICKER} CA: <span class="mono ca-inline">${C.MINT}</span></p>
-      <p><b>Not investment advice.</b> ${C.TICKER} is a meme token with no promised value. Rewards are points until on-chain payouts go live. In this draft, reward amounts, rates, caps and pool sizes are placeholders, wallet connect and claims are simulated, and creator names are fictional.</p></div>`;
+      <p><b>Not investment advice.</b> ${C.TICKER} is a meme token with no promised value. Rewards are points until on-chain payouts go live. Reward amounts, rates, caps and pool sizes are placeholders, wallet connect and claims are simulated, and creator names are fictional.</p></div>`;
     document.body.append(f);
     const lo = $('#logout'); if (lo) lo.onclick = e => { e.preventDefault(); FF.logout(); location.href = 'index.html'; };
   }
