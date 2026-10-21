@@ -205,21 +205,17 @@ const FF = (() => {
     const d0 = load();
     if (d0.users['demo@forged.fit']) { tx(d => { d.session = 'demo@forged.fit'; }); return; }
     await signup({ name: 'Demo Lifter', email: 'demo@forged.fit', password: 'demo1234', wallet: '' });
-    const fp = await deviceFingerprint('fitbit');
     tx(d => {
       const u = d.users['demo@forged.fit'];
       u.wallet = 'DemoWa11etAddrPLACEHOLDER1111111111111111';
-      u.device = { provider: 'fitbit', label: 'Fitbit (mock)', deviceId: fp, boundAt: Date.now() - 9 * 864e5, lastSync: Date.now() - 3600e3 };
-      d.devices[fp] = u.email;
-      u.deviceHistory.push({ ts: Date.now() - 9 * 864e5, event: 'Bound Fitbit (mock)', deviceId: fp });
       const today = dayKey();
       const plan = [8200, 6100, 11400, 5600, 9800, 7300, 4300]; // 6 days ago .. today
       plan.forEach((steps, i) => {
         const ts = new Date(addDays(today, i - 6) + 'T18:00:00').getTime() - (i === 6 ? 6 * 3600e3 : 0);
-        addActivity(u, { ts, source: 'device:fitbit', steps, minutes: Math.round(steps / 95) });
+        addActivity(u, { ts, source: 'demo', steps, minutes: Math.round(steps / 95) });
         const passed = i < 6; // demo: a live check-in was passed on each past day
         if (passed) u.checkins.push({ ts: ts - 3600e3, passed: true, kind: 'tap', reactionMs: 900 + Math.round(Math.random() * 1500), context: 'daily check-in (seed)' });
-        earn(u, { ts, points: steps / 100 * C.POINTS_PER_100_STEPS, source: 'Fitbit sync (mock)', verified: true, checkinPassed: passed, note: `${steps.toLocaleString()} steps` });
+        earn(u, { ts, points: steps / 100 * C.POINTS_PER_100_STEPS, source: 'Demo data', verified: true, checkinPassed: passed, note: `${steps.toLocaleString()} steps` });
       });
       const liveTs = new Date(addDays(today, -2) + 'T07:30:00').getTime();
       addActivity(u, { ts: liveTs, source: 'live', steps: 3900, minutes: 32, note: 'Sunrise 5K w/ @CoachPlaceholder' });
@@ -242,24 +238,6 @@ const FF = (() => {
     addActivity, earn, evaluate, tierOf, recordCheckin, totals, claim, deviceFingerprint, post, seedDemo, round2 };
 })();
 
-/** Mock device sync: pulls a random chunk of steps "from the provider", runs a step-rate sanity check, earns. */
-FF.syncDevice = function (opts = {}) {
-  const C = FF_CONFIG;
-  return FF.tx(d => {
-    const u = FF.me(d); if (!u) throw new Error('Not logged in');
-    if (!u.device) throw new Error('No device bound. Connect one on the Devices page.');
-    const steps = opts.steps ?? Math.round(800 + Math.random() * 2700);
-    const minutes = opts.minutes ?? Math.round(10 + Math.random() * 30);
-    const spm = steps / Math.max(1, minutes);
-    const act = FF.addActivity(u, { source: 'device:' + u.device.provider, steps, minutes, note: `sync from ${u.device.label}` });
-    const impossible = spm > C.MAX_STEPS_PER_MIN;
-    const e = FF.earn(u, { points: steps / 100 * C.POINTS_PER_100_STEPS, source: `${u.device.label} sync`, verified: !impossible, note: `${steps.toLocaleString()} steps / ${minutes} min`, ref: act.id,
-      blocked: impossible, reasons: impossible ? [`Impossible step rate: ${Math.round(spm)} steps/min (> ${C.MAX_STEPS_PER_MIN})`] : [] });
-    u.device.lastSync = Date.now();
-    FF.post(d, u.name, `synced ${steps.toLocaleString()} steps from ${u.device.label}`);
-    return { act, e };
-  });
-};
 /** Self-reported steps: logged, but never verified on their own. */
 FF.logManual = function (steps, minutes) {
   const C = FF_CONFIG;

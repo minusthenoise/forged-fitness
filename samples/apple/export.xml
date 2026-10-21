@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HealthData locale="en_US">
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Corey's iPhone" unit="count" startDate="2026-10-20 08:00:00 -0500" endDate="2026-10-20 08:30:00 -0500" value="3000"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Corey's iPhone" unit="count" startDate="2026-10-20 12:00:00 -0500" endDate="2026-10-20 12:40:00 -0500" value="2500"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Corey's Apple Watch" unit="count" startDate="2026-10-20 08:00:00 -0500" endDate="2026-10-20 08:30:00 -0500" value="3100"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Corey's Apple Watch" unit="count" startDate="2026-10-20 12:00:00 -0500" endDate="2026-10-20 12:40:00 -0500" value="2600"/>
+ <Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="Corey's Apple Watch" unit="mi" startDate="2026-10-20 08:00:00 -0500" endDate="2026-10-20 08:30:00 -0500" value="2.5"/>
+ <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Corey's Apple Watch" unit="count/min" startDate="2026-10-20 08:00:00 -0500" endDate="2026-10-20 08:00:00 -0500" value="120"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Corey's iPhone" unit="count" startDate="2026-10-21 07:00:00 -0500" endDate="2026-10-21 07:20:00 -0500" value="1500"/>
+ <Workout workoutActivityType="HKWorkoutActivityTypeWalking" duration="40" durationUnit="min" sourceName="Corey's Apple Watch" startDate="2026-10-20 12:00:00 -0500" endDate="2026-10-20 12:40:00 -0500">
+  <WorkoutStatistics type="HKQuantityTypeIdentifierStepCount" sum="2600" unit="count"/>
+ </Workout>
+</HealthData>

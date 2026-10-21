@@ -58,7 +58,7 @@ function list() {
 
 function start(sess) {
   const u = FF.me();
-  S = { sess, device: !!u.device, deviceLabel: u.device ? u.device.label : null, active: 0, points: 0, steps: 0, paused: false, moving: true, bot: false, flagged: null,
+  S = { sess, device: false, deviceLabel: null, active: 0, points: 0, steps: 0, paused: false, moving: true, bot: false, flagged: null,
     lastSignal: Date.now(), hr: 128, hrs: [], passed: 0, missed: 0, inCheckin: false, nextCk: Date.now() + (20 + Math.random() * 25) * 1000, t0: Date.now() };
   UI.$('#listView').classList.add('hidden'); UI.$('#sessView').classList.remove('hidden');
   UI.$('#sTitle').textContent = sess.title; UI.$('#sHost').textContent = sess.host + ' · ' + sess.type;

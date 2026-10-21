@@ -2,113 +2,92 @@
 <title>Devices | Forged Fitness</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="css/style.css"></head>
 <body>
 <main class="wrap">
-  <h1>Connect a device</h1>
-  <p class="muted">One device per account, one account per device. Connections below are <span class="placeholder">mocked, no OAuth yet</span>. the device ID is a fingerprint generated in this browser.</p>
-  <div class="card hot" id="bound"></div>
-  <div class="grid g3" style="margin-top:16px" id="providers"></div>
-  <div class="card" style="margin-top:16px" id="shealth">
-    <div class="row"><span style="font-size:1.6rem">💙</span><h3 style="margin:0">Samsung Health: import your data</h3><span class="tag info">file import</span></div>
-    <p class="small muted">Samsung Health has no web login we can link to, so this is not a live account connection. You export your data from the app and import it here. Files are read in your browser only.</p>
-    <ol class="small">
-      <li>Open <b>Samsung Health</b> on your phone and tap the <b>☰ menu</b> (or the ⋮ on the Home tab), then <b>Settings</b>.</li>
-      <li>Tap <b>Download personal data</b> and confirm with your Samsung account.</li>
-      <li>When it finishes, find the folder <code>Samsung Health</code> in My Files (Internal storage › Download › Samsung Health). Zip it or pick the CSVs.</li>
-      <li>Upload the ZIP, or the files named <code>com.samsung.shealth.step_daily_trend…csv</code> and <code>com.samsung.shealth.exercise…csv</code>.</li>
-    </ol>
-    <label>Samsung Health export (ZIP or CSV, multiple allowed)</label><input type="file" id="shFile" accept=".zip,.csv" multiple>
-    <div id="shOut" style="margin-top:10px"></div>
-    <p class="small muted" style="margin-top:10px"><span class="tag warn">coming soon</span> Live auto-sync through Android <b>Health Connect</b>. That needs a Forged Fitness companion Android app; a website can't read Health Connect directly. Imported days count as self-reported (unverified) until then.</p>
+  <h1>Bring your activity in</h1>
+  <p class="muted">None of these are live account links. Export your data from your app and import it here, or count steps with your phone while this page is open. Files are read in your browser only and never uploaded. Imported days count as <b>self-reported</b> (unverified), and each day can be imported once, from one source.</p>
+  <div class="card hot" id="phone">
+    <div class="row"><span style="font-size:1.6rem">📱</span><h3 style="margin:0">Phone step counter</h3><span class="tag info">works while this page is open</span></div>
+    <p class="small muted">Uses your phone's motion sensor. Keep the page open and the screen on, phone in hand or pocket. It stops if you lock the phone or switch apps. On iPhone you'll be asked to allow Motion &amp; Orientation access.</p>
+    <div class="row"><b style="font-size:2rem" id="pSteps">0</b><span class="muted">steps this session</span><span class="spacer"></span><span class="small muted" id="pTime"></span></div>
+    <div class="row" style="margin-top:8px"><button class="btn primary sm" id="pStart">Start counting</button><button class="btn sm" id="pStop" disabled>Stop &amp; save</button></div>
   </div>
-  <div class="card" style="margin-top:16px"><h3>Binding history</h3>
-    <div class="table-scroll"><table><thead><tr><th>When</th><th>Event</th><th>Device ID</th></tr></thead><tbody id="hist"></tbody></table></div></div>
-  <div class="card" style="margin-top:16px"><h3>Demo controls</h3>
-    <p class="small muted">To test "device already bound to another account": connect a device here, log out, sign up a second account in the same browser and try the same provider. It gets refused.</p>
-    <div class="row"><button class="btn sm" id="newHw">Simulate a different physical device (new hardware salt)</button><button class="btn sm" id="ff">Fast-forward my unbind cooldown</button></div>
-  </div>
+  <div class="grid g2" style="margin-top:16px" id="importers"></div>
+  <div class="card" style="margin-top:16px"><h3>Import history</h3>
+    <div class="table-scroll"><table><thead><tr><th>When</th><th>Source</th><th>Days</th><th>Steps</th><th>FIT</th></tr></thead><tbody id="hist"></tbody></table></div></div>
 </main>
-<script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script><script src="js/shealth.js"></script>
+<script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script><script src="js/shealth.js"></script><script src="js/importers.js"></script>
 <script>
-const PROVIDERS = [
-  { id: 'fitbit', label: 'Fitbit', icon: '⌚', note: 'Web API OAuth (mock)' },
-  { id: 'apple', label: 'Apple Health', icon: '🍎', note: 'HealthKit via iOS companion app (mock)' },
-  { id: 'googlefit', label: 'Google Fit / Health Connect', icon: '🟢', note: 'Health Connect on Android (mock)' },
-  { id: 'garmin', label: 'Garmin', icon: '🧭', note: 'Garmin Connect Health API (mock)' },
-  { id: 'phone', label: 'Phone sensors', icon: '📱', note: 'Motion/pedometer via mobile web (mock)' }
-];
 const C = FF_CONFIG;
-UI.boot({ auth: true }).then(u => { if (!u) return; render(); shInit();
-  UI.$('#newHw').onclick = () => { FF.tx(d => { d.browserSalt = FF.rid(12); }); UI.toast('New hardware salt. The next connect produces a different device ID.'); };
-  UI.$('#ff').onclick = () => { FF.updateMe(u => { u.cooldownUntil = 0; }); UI.toast('Cooldown cleared (demo only).'); render(); };
-});
-async function connect(p) {
-  const d = FF.load(), u = FF.me(d);
-  if (u.device) return UI.toast('You already have a bound device. Unbind it first (starts a ' + C.UNBIND_COOLDOWN_H + 'h cooldown).');
-  if (u.cooldownUntil > Date.now()) return UI.toast(`Unbind cooldown active until ${UI.time(u.cooldownUntil)}.`);
-  UI.toast(`Connecting to ${p.label}… <span class="small muted">(simulated OAuth)</span>`, 1200);
-  await new Promise(r => setTimeout(r, 900));
-  const id = await FF.deviceFingerprint(p.id, d);
-  try {
-    const refused = FF.tx(d => {
-      const u = FF.me(d), owner = d.devices[id];
-      if (owner && owner !== u.email) { u.deviceHistory.push({ ts: Date.now(), event: `REFUSED ${p.label}: already bound to another account`, deviceId: id }); return true; }
-      d.devices[id] = u.email;
-      u.device = { provider: p.id, label: p.label, deviceId: id, boundAt: Date.now(), lastSync: 0 };
-      u.deviceHistory.push({ ts: Date.now(), event: `Bound ${p.label}`, deviceId: id });
-      FF.post(d, u.name, `connected ${p.label}`);
-    });
-    if (refused) throw new Error(`Refused: this ${p.label} (${id}) is already bound to another account.`);
-    const { act, e } = FF.syncDevice();
-    UI.toast(`${p.label} bound. First sync: ${UI.num(act.steps)} steps → ${UI.num(e.amount, 2)} FIT.`);
-  } catch (er) { UI.toast(er.message, 5000); }
-  render();
+const SOON = name => `<p class="small muted" style="margin-top:10px"><span class="tag warn">coming soon</span> Live auto-sync${name}.</p>`;
+const IMPORTERS = [
+  { id: 'apple', label: 'Apple Health', icon: '🍎', accept: '.zip,.xml', parse: FFImport.apple,
+    steps: ['On iPhone open <b>Health</b>, tap your profile picture (top right).', 'Tap <b>Export All Health Data</b> › Export. It can take a few minutes.', 'Save <code>export.zip</code> to Files, then upload it here (or the <code>export.xml</code> inside).'],
+    fine: 'Steps, walking/running distance and workouts. When iPhone and Watch both log steps, the source with the most steps that day is used, so nothing is counted twice.',
+    soon: ' needs a Forged Fitness iOS app (HealthKit is not available to websites)' },
+  { id: 'samsung', label: 'Samsung Health', icon: '💙', accept: '.zip,.csv', parse: FFImport.samsung,
+    steps: ['In <b>Samsung Health</b> tap the menu, then <b>Settings</b>.', 'Tap <b>Download personal data</b> and confirm with your Samsung account.', 'In My Files › Download › Samsung Health, zip the folder or pick the CSVs.', 'Upload the ZIP or the <code>step_daily_trend</code> and <code>exercise</code> CSVs.'],
+    fine: 'Daily steps, distance and workouts.', soon: ' through Android Health Connect needs a Forged Fitness Android app' },
+  { id: 'googlefit', label: 'Google Fit', icon: '🟢', accept: '.zip,.csv', parse: FFImport.googlefit,
+    steps: ['Go to <b>takeout.google.com</b>, click <b>Deselect all</b>, tick <b>Fit</b>.', 'Create the export and download the ZIP from the email.', 'Upload the ZIP, or <code>Takeout/Fit/Daily activity metrics/Daily activity metrics.csv</code>.'],
+    fine: 'Daily steps, distance and Move Minutes. Health Connect itself has no export file.', soon: ' through Health Connect needs a Forged Fitness Android app' },
+  { id: 'fitbit', label: 'Fitbit', icon: '⌚', accept: '.zip,.json,.csv', parse: FFImport.fitbit,
+    steps: ['Go to <b>takeout.google.com</b>, Deselect all, tick <b>Fitbit</b> (or use Fitbit app › Settings › Manage data › Export your data).', 'Download the ZIP when it\'s ready.', 'Upload the ZIP, or the <code>steps-*.json</code>, <code>distance-*.json</code> and <code>exercise-*.json</code> files.'],
+    fine: 'Steps, distance and logged exercises.', soon: ' needs a server for Fitbit\'s Web API sign-in' },
+  { id: 'garmin', label: 'Garmin', icon: '🧭', accept: '.csv', parse: FFImport.garmin,
+    steps: ['On a computer open <b>connect.garmin.com</b> › Activities › All Activities.', 'Scroll to load the range you want, then click <b>Export CSV</b> (top right).', 'Upload <code>Activities.csv</code>.'],
+    fine: 'Recorded activities only (not all-day steps). Distance shows in your Garmin units. .fit files are not supported yet.', soon: ' needs a server for Garmin\'s Health API' },
+];
+const parsed = {};
+UI.boot({ auth: true }).then(u => { if (!u) return; renderCards(); hist(); phoneInit(); });
+function imported(u) { const m = Object.assign({}, u.importedDays || {}); for (const k in (u.shealthDays || {})) m[k] = m[k] || 'samsung'; return m; }
+function renderCards() {
+  UI.$('#importers').innerHTML = IMPORTERS.map(p => `<div class="card" id="c-${p.id}">
+    <div class="row"><span style="font-size:1.6rem">${p.icon}</span><h3 style="margin:0">${p.label}</h3><span class="tag info">file import</span></div>
+    <ol class="small">${p.steps.map(s => `<li>${s}</li>`).join('')}</ol><p class="small muted">${p.fine}</p>
+    <input type="file" data-imp="${p.id}" accept="${p.accept}" multiple><div class="out" style="margin-top:10px"></div>${SOON(p.soon)}</div>`).join('');
+  UI.$$('[data-imp]').forEach(i => i.onchange = async () => { const p = IMPORTERS.find(x => x.id === i.dataset.imp), out = UI.$(`#c-${p.id} .out`);
+    if (!i.files.length) return; out.innerHTML = '<p class="small muted">Reading…</p>';
+    try { parsed[p.id] = await p.parse([...i.files]); preview(p); } catch (er) { out.innerHTML = `<p class="small" style="color:var(--bad)">${UI.esc(er.message)}</p>`; } });
 }
-function unbind() {
-  if (!confirm(`Unbind this device? You won't be able to bind another for ${C.UNBIND_COOLDOWN_H} hours.`)) return;
-  FF.tx(d => { const u = FF.me(d); delete d.devices[u.device.deviceId]; u.deviceHistory.push({ ts: Date.now(), event: `Unbound ${u.device.label}`, deviceId: u.device.deviceId });
-    u.device = null; u.cooldownUntil = Date.now() + C.UNBIND_COOLDOWN_H * 3600e3; });
-  render();
-}
-function render() {
-  const u = FF.me(), cd = u.cooldownUntil > Date.now();
-  UI.$('#bound').innerHTML = u.device
-    ? `<div class="row"><span class="tag ok">bound</span><b>${UI.esc(u.device.label)}</b><span class="mono small">${u.device.deviceId}</span><span class="spacer"></span><button class="btn sm" id="syncB">Sync now</button><button class="btn sm danger" id="unb">Unbind</button></div>
-       <p class="small muted">Bound ${UI.time(u.device.boundAt)} · last sync ${u.device.lastSync ? UI.ago(u.device.lastSync) : 'never'} · This device ID is locked to your account; no other account can use it.</p>`
-    : `<div class="row"><span class="tag warn">no device</span><b>Connect one device to earn verified rewards.</b></div>${cd ? `<p class="small" style="color:var(--warn)">Unbind cooldown: you can bind a new device after ${UI.time(u.cooldownUntil)}.</p>` : ''}`;
-  if (u.device) { UI.$('#unb').onclick = unbind; UI.$('#syncB').onclick = () => { try { const { act, e } = FF.syncDevice(); UI.toast(`+${UI.num(act.steps)} steps → ${UI.num(e.amount, 2)} FIT (${e.status})`); render(); } catch (er) { UI.toast(er.message); } }; }
-  UI.$('#providers').innerHTML = PROVIDERS.map(p => { const mine = u.device && u.device.provider === p.id;
-    return `<div class="card"><div style="font-size:1.8rem">${p.icon}</div><h3>${p.label}</h3><p class="small muted">${p.note}</p>
-      <button class="btn ${mine ? '' : 'primary'} sm" data-p="${p.id}" ${u.device || cd ? 'disabled' : ''}>${mine ? 'Connected' : 'Connect'}</button></div>`; }).join('');
-  UI.$$('[data-p]').forEach(b => b.onclick = () => connect(PROVIDERS.find(p => p.id === b.dataset.p)));
-  UI.$('#hist').innerHTML = u.deviceHistory.slice().reverse().map(h => `<tr><td class="small">${UI.time(h.ts)}</td><td class="small" style="${/REFUSED/.test(h.event) ? 'color:var(--bad)' : ''}">${UI.esc(h.event)}</td><td class="mono small">${h.deviceId}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No device events yet.</td></tr>';
-}
-
-let SH = null;
-function shInit() {
-  UI.$('#shFile').onchange = async ev => { const files = [...ev.target.files]; if (!files.length) return;
-    try { SH = await FFSHealth.readFiles(files); shPreview(); } catch (er) { UI.$('#shOut').innerHTML = `<p class="small" style="color:var(--bad)">${UI.esc(er.message)}</p>`; } };
-}
-function shPreview() {
-  const u = FF.me(), done = u.shealthDays || {}, keys = Object.keys(SH.days).sort();
-  if (!keys.length) { UI.$('#shOut').innerHTML = '<p class="small" style="color:var(--warn)">No step or exercise data found. Upload the export ZIP or the step_daily_trend / exercise CSVs.</p>'; return; }
+function dist(d) { return d.distanceRaw != null ? `${d.distanceRaw.toFixed(2)} (Garmin units)` : `${(d.distanceM / 1000).toFixed(2)} km`; }
+function preview(p) {
+  const R = parsed[p.id], done = imported(FF.me()), keys = Object.keys(R.days).sort(), out = UI.$(`#c-${p.id} .out`);
+  if (!keys.length) { out.innerHTML = '<p class="small" style="color:var(--warn)">No step or workout data found in those files.</p>'; return; }
   const fresh = keys.filter(k => !done[k]);
-  UI.$('#shOut').innerHTML = `<p class="small muted">Read ${SH.files.length} file(s). ${keys.length} day(s) found, ${fresh.length} new.</p>
-    <div class="table-scroll"><table><thead><tr><th>Day</th><th>Steps</th><th>Distance</th><th>Exercise</th><th></th></tr></thead><tbody>${keys.slice(-14).reverse().map(k => { const d = SH.days[k];
-      return `<tr><td class="small">${k}</td><td>${UI.num(d.steps)}</td><td class="small">${(d.distanceM / 1000).toFixed(2)} km</td><td class="small">${d.exerciseMin} min (${d.sessions})</td><td class="small">${done[k] ? '<span class="tag">imported</span>' : '<span class="tag ok">new</span>'}</td></tr>`; }).join('')}</tbody></table></div>
-    ${keys.length > 14 ? '<p class="small muted">Showing latest 14 days.</p>' : ''}
-    <button class="btn primary sm" id="shGo" ${fresh.length ? '' : 'disabled'}>Import ${fresh.length} new day(s)</button>`;
-  if (fresh.length) UI.$('#shGo').onclick = () => shImport(fresh);
+  out.innerHTML = `<p class="small muted">Read ${R.files.length} file(s). ${keys.length} day(s), ${fresh.length} new.</p>
+    <div class="table-scroll"><table><thead><tr><th>Day</th><th>Steps</th><th>Distance</th><th>Workouts</th><th></th></tr></thead><tbody>${keys.slice(-14).reverse().map(k => { const d = R.days[k];
+      return `<tr><td class="small">${k}</td><td>${UI.num(d.steps)}</td><td class="small">${dist(d)}</td><td class="small">${d.exerciseMin} min (${d.sessions})</td><td class="small">${done[k] ? `<span class="tag">imported (${UI.esc(done[k])})</span>` : '<span class="tag ok">new</span>'}</td></tr>`; }).join('')}</tbody></table></div>
+    ${keys.length > 14 ? '<p class="small muted">Showing the latest 14 days.</p>' : ''}
+    <button class="btn primary sm" data-go ${fresh.length ? '' : 'disabled'}>Import ${fresh.length} new day(s)</button>`;
+  if (fresh.length) out.querySelector('[data-go]').onclick = () => doImport(p, fresh);
 }
-function shImport(keys) {
-  const r = FF.tx(d => { const u = FF.me(d); u.shealthDays = u.shealthDays || {}; let steps = 0, fit = 0, n = 0;
-    for (const k of keys) { if (u.shealthDays[k]) continue; const x = SH.days[k], [y, m, dd] = k.split('-').map(Number);
+function doImport(p, keys) {
+  const R = parsed[p.id];
+  const r = FF.tx(d => { const u = FF.me(d); u.importedDays = u.importedDays || {}; u.importLog = u.importLog || []; const done = imported(u); let steps = 0, fit = 0, n = 0;
+    for (const k of keys) { if (done[k]) continue; const x = R.days[k], [y, m, dd] = k.split('-').map(Number);
       const ts = Math.min(new Date(y, m - 1, dd, 20).getTime(), Date.now());
-      const act = FF.addActivity(u, { ts, source: 'samsung-health', steps: x.steps, minutes: x.exerciseMin, note: `Samsung Health import${x.sessions ? `, ${x.sessions} workout(s)` : ''}` });
-      const e = FF.earn(u, { ts, points: x.steps / 100 * C.POINTS_PER_100_STEPS, source: 'Samsung Health import', verified: false, note: `${x.steps.toLocaleString()} steps, ${(x.distanceM / 1000).toFixed(2)} km`, ref: act.id });
-      u.shealthDays[k] = { ts: Date.now(), steps: x.steps, ledgerId: e.id }; steps += x.steps; fit += e.amount; n++; }
-    if (n) FF.post(d, u.name, `imported ${n} day(s) from Samsung Health`);
+      const act = FF.addActivity(u, { ts, source: 'import:' + p.id, steps: x.steps, minutes: x.exerciseMin, note: `${p.label} import${x.sessions ? `, ${x.sessions} workout(s)` : ''}` });
+      const e = FF.earn(u, { ts, points: x.steps / 100 * C.POINTS_PER_100_STEPS, source: `${p.label} import`, verified: false, note: `${x.steps.toLocaleString()} steps, ${dist(x)}`, ref: act.id });
+      u.importedDays[k] = p.id; steps += x.steps; fit += e.amount; n++; }
+    if (n) { u.importLog.push({ ts: Date.now(), source: p.label, days: n, steps, fit }); FF.post(d, u.name, `imported ${n} day(s) from ${p.label}`); }
     return { steps, fit, n }; });
-  UI.toast(`Imported ${r.n} day(s): ${UI.num(r.steps)} steps → ${UI.num(r.fit, 2)} FIT (self-reported, pending verification).`, 5000);
-  shPreview(); render();
+  UI.toast(`Imported ${r.n} day(s) from ${p.label}: ${UI.num(r.steps)} steps → ${UI.num(r.fit, 2)} FIT (self-reported).`, 5000);
+  preview(p); hist();
+}
+function hist() { const u = FF.me();
+  UI.$('#hist').innerHTML = (u.importLog || []).slice().reverse().map(h => `<tr><td class="small">${UI.time(h.ts)}</td><td>${UI.esc(h.source)}</td><td>${h.days}</td><td>${UI.num(h.steps)}</td><td>${UI.num(h.fit, 2)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No imports yet.</td></tr>'; }
+function phoneInit() {
+  let steps = 0, t0 = 0, timer; const ped = FFImport.Pedometer(() => { steps++; UI.$('#pSteps').textContent = UI.num(steps); });
+  UI.$('#pStart').onclick = async () => { try { await ped.start(); steps = 0; t0 = Date.now(); UI.$('#pSteps').textContent = '0';
+      UI.$('#pStart').disabled = true; UI.$('#pStop').disabled = false; timer = setInterval(() => { UI.$('#pTime').textContent = Math.floor((Date.now() - t0) / 60000) + ' min'; }, 5000);
+      setTimeout(() => { if (ped.on && steps === 0) UI.toast('No motion yet. If nothing counts, your browser may not expose the motion sensor.', 5000); }, 15000);
+    } catch (er) { UI.toast(er.message, 5000); } };
+  UI.$('#pStop').onclick = () => { ped.stop(); clearInterval(timer); UI.$('#pStart').disabled = false; UI.$('#pStop').disabled = true;
+    if (!steps) return UI.toast('No steps counted, nothing saved.');
+    const mins = Math.max(1, Math.round((Date.now() - t0) / 60000));
+    const r = FF.tx(d => { const u = FF.me(d); const act = FF.addActivity(u, { source: 'phone', steps, minutes: mins, note: 'Phone step counter (page open)' });
+      const e = FF.earn(u, { points: steps / 100 * C.POINTS_PER_100_STEPS, source: 'Phone step counter', verified: false, note: `${steps.toLocaleString()} steps / ${mins} min`, ref: act.id });
+      u.importLog = u.importLog || []; u.importLog.push({ ts: Date.now(), source: 'Phone step counter', days: 1, steps, fit: e.amount }); return e; });
+    UI.toast(`Saved ${UI.num(steps)} steps → ${UI.num(r.amount, 2)} FIT (self-reported).`, 5000); hist(); };
 }
 </script>
 <script data-goatcounter="https://forgedfitness.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>

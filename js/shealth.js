@@ -46,7 +46,7 @@
     return { days, files: used };
   }
 
-  async function unzip(buf) {
+  async function unzip(buf, want = n => /\.csv$/i.test(n) && /step_daily_trend|step_count|shealth\.exercise\./.test(n)) {
     const dv = new DataView(buf), u8 = new Uint8Array(buf), out = []; let eocd = -1;
     for (let i = u8.length - 22; i >= 0; i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
     if (eocd < 0) throw new Error('Not a valid ZIP file.');
@@ -55,13 +55,14 @@
       const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true),
         xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
       const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
-      if (!/\.csv$/i.test(name) || !/step_daily_trend|step_count|shealth\.exercise\./.test(name)) continue;
+      if (!want(name)) continue;
+      if (dv.getUint32(eocd + 16, true) === 0xffffffff || csize === 0xffffffff) throw new Error('ZIP64 archive (very large export). Unzip it and upload the files inside instead.');
       const start = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true), data = u8.subarray(start, start + csize);
       let text;
       if (method === 0) text = new TextDecoder().decode(data);
       else if (method === 8) text = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
       else continue;
-      out.push({ name: name.split('/').pop(), text });
+      out.push({ name: name.split('/').pop(), path: name, text });
     }
     return out;
   }

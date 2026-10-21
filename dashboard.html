@@ -3,7 +3,7 @@
 <body>
 <main class="wrap">
   <div class="row"><h1 id="hello">Dashboard</h1><span class="spacer"></span>
-    <button class="btn primary" id="sync">Sync device</button><a class="btn" href="sessions.html">🔴 Go live</a><a class="btn" href="upload.html">Upload screenshot</a></div>
+    <a class="btn primary" href="devices.html">Import activity</a><a class="btn" href="sessions.html">🔴 Go live</a><a class="btn" href="upload.html">Upload screenshot</a></div>
   <p class="muted small" id="devline"></p>
 
   <div class="grid g4">
@@ -44,14 +44,12 @@
 <script src="js/store.js"></script><script src="js/mock.js"></script><script src="js/app.js"></script>
 <script>
 UI.boot({ auth: true }).then(u => { if (!u) return; render();
-  UI.$('#sync').onclick = () => { try { const { act, e } = FF.syncDevice(); UI.toast(`Synced ${UI.num(act.steps)} steps → ${UI.num(e.amount, 2)} FIT (${e.status})${e.cappedOff > 0 ? ' · cap hit' : ''}`); render(); } catch (er) { UI.toast(er.message); } };
   UI.$('#mLog').onclick = () => { try { const e = FF.logManual(UI.$('#mSteps').value, UI.$('#mMin').value); UI.toast(`Logged. ${e.status}: ${e.reasons[0] || ''}`); render(); } catch (er) { UI.toast(er.message); } };
 });
 function render() {
   const C = FF_CONFIG, d = FF.load(), u = FF.me(d), today = FF.dayKey();
   UI.$('#hello').textContent = `Let's forge, ${u.name.split(' ')[0]}`;
-  UI.$('#devline').innerHTML = u.device ? `Bound device: <b>${UI.esc(u.device.label)}</b> <span class="mono">${u.device.deviceId}</span> · last sync ${UI.ago(u.device.lastSync || u.device.boundAt)}` : `No device bound. <a href="devices.html">connect one</a> to earn verified rewards.`;
-  UI.$('#sync').disabled = !u.device;
+  UI.$('#devline').innerHTML = (u.importLog && u.importLog.length) ? `Last import: <b>${UI.esc(u.importLog[u.importLog.length - 1].source)}</b> · ${UI.ago(u.importLog[u.importLog.length - 1].ts)}. <a href="devices.html">import more</a>` : `No activity imported yet. <a href="devices.html">import from your health app</a> or count steps with your phone.`;
   const t = FF.stepsOn(u, today); UI.$('#today').textContent = UI.num(t);
   UI.$('#todayGoal').textContent = t >= C.STREAK_GOAL_STEPS ? '✅ streak goal hit' : `${UI.num(C.STREAK_GOAL_STEPS - t)} to streak goal`;
   const wk = u.activities.filter(a => a.ts >= FF.startOfWeek()).reduce((s, a) => s + a.steps, 0); UI.$('#week').textContent = UI.num(wk);
