@@ -78,4 +78,5 @@ function render() {
   UI.$('#payouts').innerHTML = u.payouts.slice().reverse().map(p => `<tr><td class="small">${UI.time(p.ts)}</td><td style="text-align:right"><b>${UI.num(p.amount, 2)}</b></td><td class="mono small">${p.wallet.slice(0, 6)}…${p.wallet.slice(-4)}</td><td class="mono small">${p.sig.slice(0, 26)}… <span class="tag warn">simulated</span></td></tr>`).join('') || '<tr><td colspan="4" class="muted">No payouts yet.</td></tr>';
 }
 </script>
+<script data-goatcounter="https://forgedfitness.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body></html>

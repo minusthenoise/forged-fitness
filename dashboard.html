@@ -79,4 +79,5 @@ function render() {
   UI.$('#acts').innerHTML = u.activities.slice().sort((a, b) => b.ts - a.ts).slice(0, 8).map(a => `<tr><td class="small">${UI.time(a.ts)}</td><td class="small">${UI.esc(a.source)}${a.note ? ` <span class="muted">· ${UI.esc(a.note)}</span>` : ''}</td><td style="text-align:right">${UI.num(a.steps)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No activity yet.</td></tr>';
 }
 </script>
+<script data-goatcounter="https://forgedfitness.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body></html>

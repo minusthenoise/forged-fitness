@@ -69,4 +69,5 @@ function render() {
   UI.$('#hist').innerHTML = u.deviceHistory.slice().reverse().map(h => `<tr><td class="small">${UI.time(h.ts)}</td><td class="small" style="${/REFUSED/.test(h.event) ? 'color:var(--bad)' : ''}">${UI.esc(h.event)}</td><td class="mono small">${h.deviceId}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No device events yet.</td></tr>';
 }
 </script>
+<script data-goatcounter="https://forgedfitness.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body></html>
