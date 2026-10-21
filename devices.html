@@ -76,11 +76,12 @@ function doImport(p, keys) {
 function hist() { const u = FF.me();
   UI.$('#hist').innerHTML = (u.importLog || []).slice().reverse().map(h => `<tr><td class="small">${UI.time(h.ts)}</td><td>${UI.esc(h.source)}</td><td>${h.days}</td><td>${UI.num(h.steps)}</td><td>${UI.num(h.fit, 2)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No imports yet.</td></tr>'; }
 function phoneInit() {
-  let steps = 0, t0 = 0, timer; const ped = FFImport.Pedometer(() => { steps++; UI.$('#pSteps').textContent = UI.num(steps); });
+  let steps = 0, t0 = 0, timer; const reset = () => { UI.$('#pStart').disabled = false; UI.$('#pStop').disabled = true; UI.$('#pTime').textContent = ''; };
+  const ped = FFImport.Pedometer(() => { steps++; UI.$('#pSteps').textContent = UI.num(steps); });
   UI.$('#pStart').onclick = async () => { try { await ped.start(); steps = 0; t0 = Date.now(); UI.$('#pSteps').textContent = '0';
       UI.$('#pStart').disabled = true; UI.$('#pStop').disabled = false; timer = setInterval(() => { UI.$('#pTime').textContent = Math.floor((Date.now() - t0) / 60000) + ' min'; }, 5000);
-      setTimeout(() => { if (ped.on && steps === 0) UI.toast('No motion yet. If nothing counts, your browser may not expose the motion sensor.', 5000); }, 15000);
-    } catch (er) { UI.toast(er.message, 5000); } };
+      setTimeout(() => { if (ped.on && !ped.hasData) { ped.stop(); clearInterval(timer); reset(); UI.toast(FFImport.Pedometer.NO_SENSOR, 6000); } }, 3000);
+    } catch (er) { ped.stop(); reset(); UI.toast(er.message, 6000); } };
   UI.$('#pStop').onclick = () => { ped.stop(); clearInterval(timer); UI.$('#pStart').disabled = false; UI.$('#pStop').disabled = true;
     if (!steps) return UI.toast('No steps counted, nothing saved.');
     const mins = Math.max(1, Math.round((Date.now() - t0) / 60000));

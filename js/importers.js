@@ -96,18 +96,19 @@
 
   // ---------- phone pedometer (DeviceMotion, page must stay open) ----------
   function Pedometer(onStep) {
-    let ema = 9.81, avgDev = 0.6, above = false, last = 0, on = false;
-    const h = ev => { const a = ev.accelerationIncludingGravity; if (!a || a.x == null) return;
+    let ema = 9.81, avgDev = 0.6, above = false, last = 0, on = false, hasData = false;
+    const h = ev => { const a = ev.accelerationIncludingGravity; if (!a || a.x == null || a.y == null || a.z == null) return; hasData = true;
       const mag = Math.hypot(a.x, a.y, a.z), now = ev.timeStamp || performance.now();
       ema += 0.02 * (mag - ema); const dev = mag - ema; avgDev += 0.02 * (Math.abs(dev) - avgDev);
       const thr = Math.max(1.0, avgDev * 1.3);
       if (!above && dev > thr) { above = true; if (now - last > 280 && now - last < 2500 || last === 0) onStep(); last = now; }
       else if (above && dev < thr * 0.3) above = false; };
     return {
-      async start() { if (typeof DeviceMotionEvent === 'undefined') throw new Error('This browser has no motion sensor access. Open the page on a phone.');
-        if (typeof DeviceMotionEvent.requestPermission === 'function') { const p = await DeviceMotionEvent.requestPermission(); if (p !== 'granted') throw new Error('Motion permission was denied. Allow Motion & Orientation access and try again.'); }
-        window.addEventListener('devicemotion', h); on = true; },
-      stop() { window.removeEventListener('devicemotion', h); on = false; }, get on() { return on; } };
+      async start() { if (typeof DeviceMotionEvent === 'undefined') throw new Error(Pedometer.NO_SENSOR);
+        if (typeof DeviceMotionEvent.requestPermission === 'function') { const p = await DeviceMotionEvent.requestPermission(); if (p !== 'granted') throw new Error('Motion access was denied. On iPhone, close and reopen this page in Safari, tap Start counting and choose Allow.'); }
+        hasData = false; window.addEventListener('devicemotion', h); on = true; },
+      stop() { window.removeEventListener('devicemotion', h); on = false; }, get on() { return on; }, get hasData() { return hasData; } };
   }
+  Pedometer.NO_SENSOR = 'No motion sensor found. Open this page on your phone to count steps.';
   g.FFImport = { apple, appleFromText, googlefit, fitbit, garmin, samsung, Pedometer, dayKey };
 })(typeof window !== 'undefined' ? window : globalThis);
